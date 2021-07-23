@@ -68,7 +68,7 @@ func init() {
 }
 
 
-var addr = flag.String("listen-address", "127.0.0.1:5000", "The address to listen on for HTTP requests.")
+var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
 
 func main() {
 	flag.Parse()
@@ -84,6 +84,8 @@ func main() {
 
 	//sysloadFive.Set(100)
 	//init()
+
+	// initMetrics
 
 
 	http.Handle("/metrics", promhttp.Handler())
