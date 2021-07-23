@@ -18,7 +18,7 @@ const (
 
 type myCollector struct{} // 今回働いてくれるインスタンス
 
-var refresh_rate = 15
+var refreshRate = 15
 
 var (
 	sysload = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -86,10 +86,10 @@ func main() {
 	//init()
 
 	// initMetrics
-
+	//refreshRate := 3
 
 	http.Handle("/metrics", promhttp.Handler())
-	go update(refresh_rate)
+	go update(refreshRate)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 
