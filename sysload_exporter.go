@@ -22,32 +22,35 @@ const (
 
 type myCollector struct{} // 今回働いてくれるインスタンス
 
-var refreshRate = 15
+var refreshRate = 5
 
-var (
-	sysload = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "sysload",
-		Help:      "Sysload",
-	})
-	sysloadOne = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "sysload_one",
-		Help:      "Sysload 1 min",
-	})
-	sysloadFive = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "sysload_five",
-		Help:      "sysload five help",
-	})
 
-	sysloadFifteen = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "sysload_fifteen",
-		Help:      "Sysload 15 min",
-	})
+//var (
+//	sysload = prometheus.NewGauge(prometheus.GaugeOpts{
+//		Namespace: namespace,
+//		Name:      "sysload",
+//		Help:      "Sysload",
+//	})
+//	sysloadOne = prometheus.NewGauge(prometheus.GaugeOpts{
+//		Namespace: namespace,
+//		Name:      "sysload_one",
+//		Help:      "Sysload 1 min",
+//	})
+//	sysloadFive = prometheus.NewGauge(prometheus.GaugeOpts{
+//		Namespace: namespace,
+//		Name:      "sysload_five",
+//		Help:      "sysload five help",
+//	})
+//
+//	sysloadFifteen = prometheus.NewGauge(prometheus.GaugeOpts{
+//		Namespace: namespace,
+//		Name:      "sysload_fifteen",
+//		Help:      "Sysload 15 min",
+//	})
+//
+//)
 
-)
+var metrics map[string]prometheus.Collector
 
 
 //func (c myCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -110,11 +113,46 @@ func main() {
 
 	rand.Seed(42)
 
-	//var c myCollector
-	prometheus.MustRegister(sysload)
-	prometheus.MustRegister(sysloadOne)
-	prometheus.MustRegister(sysloadFive)
-	prometheus.MustRegister(sysloadFifteen)
+	metrics = make(map[string]prometheus.Collector)
+	metrics["sysload30"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "sysload30",
+		Help:      "Sysload30",
+	})
+
+	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "sysload",
+		Help:      "Sysload",
+	})
+	metrics["sysload_one"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "sysload_one",
+		Help:      "Sysload 1 min",
+	})
+	metrics["sysload_five"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "sysload_five",
+		Help:      "sysload five help",
+	})
+
+	metrics["sysload_fifteen"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "sysload_fifteen",
+		Help:      "Sysload 15 min",
+	})
+
+	//prometheus.MustRegister(metrics...)
+	//
+	////var c myCollector
+	//prometheus.MustRegister(sysload)
+	//prometheus.MustRegister(sysloadOne)
+	//prometheus.MustRegister(sysloadFive)
+	//prometheus.MustRegister(sysloadFifteen)
+	for _, e := range metrics {
+		prometheus.MustRegister(e)
+	}
+
 
 	//sysloadFive.Set(100)
 	//init()
@@ -135,7 +173,13 @@ func update(refreshRate int) {
 		time.Sleep(time.Duration(refreshRate) * time.Second)
 		fmt.Println("aaaa")
 		fmt.Println(i)
-		sysloadFive.Set(rand.Float64())
+		//sysloadFive.Set(rand.Float64())
+		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
+		for _, e := range metrics {
+			if g, ok := e.(prometheus.Gauge); ok {
+				g.Set(rand.Float64())
+			}
+		}
 	}
 
 }
