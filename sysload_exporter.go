@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
@@ -8,6 +9,9 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -67,6 +71,36 @@ func init() {
 
 }
 
+func findBlockDevices() []string {
+
+	var devices []string
+	r := regexp.MustCompile("^(x?[svh]d[a-z]|cciss\\/c0d0|fio[a-z])$")
+
+	f, err := os.Open("/proc/diskstats")
+	if err != nil{
+		fmt.Println("error")
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+
+	for scanner.Scan() {
+		e := strings.Fields(scanner.Text())
+		fmt.Println(e[2])
+		m := r.Find([]byte(e[2]))
+		if m != nil {
+			devices = append(devices, string(m))
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(devices)
+
+	return devices
+}
+
 
 var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
 
@@ -87,6 +121,7 @@ func main() {
 
 	// initMetrics
 	//refreshRate := 3
+	findBlockDevices()
 
 	http.Handle("/metrics", promhttp.Handler())
 	go update(refreshRate)
