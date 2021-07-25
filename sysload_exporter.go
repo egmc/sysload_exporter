@@ -15,7 +15,6 @@ import (
 	"time"
 )
 
-// Metricsの定義
 const (
 	namespace = "sysload"
 )
@@ -23,7 +22,6 @@ const (
 //type myCollector struct{}
 
 var refreshRate = 5
-
 
 //var (
 //	sysload = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -50,7 +48,7 @@ var refreshRate = 5
 //
 //)
 
-var metrics map[string]prometheus.Collector
+var metrics map[string]prometheus.Gauge
 
 
 //func (c myCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -105,6 +103,33 @@ func findBlockDevices() []string {
 }
 
 
+func findInterruptedCpu() {
+	cpuNum := getCpuNum()
+	fmt.Printf("num: %d\n", cpuNum)
+}
+
+func getCpuNum() int {
+	num := 0
+	f, err := os.Open("/proc/cpuinfo")
+	if err != nil{
+		fmt.Println("error")
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	r := regexp.MustCompile("^processor");
+
+	for scanner.Scan() {
+		if r.Match(scanner.Bytes()) {
+			num++
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return num
+}
+
 var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
 
 func main() {
@@ -113,7 +138,7 @@ func main() {
 
 	rand.Seed(42)
 
-	metrics = make(map[string]prometheus.Collector)
+	metrics = make(map[string]prometheus.Gauge)
 	metrics["sysload30"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "sysload30",
@@ -160,6 +185,7 @@ func main() {
 	// initMetrics
 	//refreshRate := 3
 	findBlockDevices()
+	findInterruptedCpu()
 
 	go update(refreshRate)
 
@@ -177,9 +203,10 @@ func update(refreshRate int) {
 		//sysloadFive.Set(rand.Float64())
 		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
 		for _, e := range metrics {
-			if g, ok := e.(prometheus.Gauge); ok {
-				g.Set(rand.Float64())
-			}
+			e.Set(rand.Float64())
+			//if g, ok := e.(prometheus.Gauge); ok {
+			//	g.Set(rand.Float64())
+			//}
 		}
 	}
 
