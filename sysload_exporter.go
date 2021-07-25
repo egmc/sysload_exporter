@@ -20,7 +20,7 @@ const (
 	namespace = "sysload"
 )
 
-type myCollector struct{} // 今回働いてくれるインスタンス
+//type myCollector struct{}
 
 var refreshRate = 5
 
@@ -161,9 +161,11 @@ func main() {
 	//refreshRate := 3
 	findBlockDevices()
 
-	http.Handle("/metrics", promhttp.Handler())
 	go update(refreshRate)
+
+	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(*addr, nil))
+
 }
 
 func update(refreshRate int) {
@@ -171,8 +173,7 @@ func update(refreshRate int) {
 	for {
 		i++
 		time.Sleep(time.Duration(refreshRate) * time.Second)
-		fmt.Println("aaaa")
-		fmt.Println(i)
+		fmt.Printf("metric updated: %d \n", i)
 		//sysloadFive.Set(rand.Float64())
 		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
 		for _, e := range metrics {
