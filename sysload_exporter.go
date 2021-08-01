@@ -2,17 +2,20 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -86,7 +89,7 @@ func findBlockDevices() []string {
 
 	for scanner.Scan() {
 		e := strings.Fields(scanner.Text())
-		fmt.Println(e[2])
+		//fmt.Println(e[2])
 		m := r.Find([]byte(e[2]))
 		if m != nil {
 			devices = append(devices, string(m))
@@ -102,10 +105,53 @@ func findBlockDevices() []string {
 	return devices
 }
 
+// findInterruptedCpu cpu num from /proc/interrupts
+func findInterruptedCpu(targetDevice string) []string {
+	var interruptedCpu []string
 
-func findInterruptedCpu() {
 	cpuNum := getCpuNum()
 	fmt.Printf("num: %d\n", cpuNum)
+
+	f, err := os.Open("/proc/interrupts")
+	if err != nil{
+		fmt.Println("error")
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+
+
+	for scanner.Scan() {
+		l := scanner.Text()
+		if !strings.Contains(l, targetDevice) {
+			continue
+		}
+		if strings.Contains(l, "tx") {
+			continue
+		}
+
+		e := strings.Fields(l)[1:]
+		//fmt.Println(e)
+
+		for i := range make([]int, cpuNum) {
+			fmt.Println(i)
+			s := e[i]
+			n, err :=  strconv.Atoi(s)
+			if err != nil {
+				fmt.Println("error")
+			}
+			r, _ := utf8.DecodeLastRuneInString(s)
+
+			if unicode.IsDigit(r)  && n > 0 {
+				for _, v := range interruptedCpu {
+					if v == s {
+						break
+					}
+				}
+				interruptedCpu = append(interruptedCpu, s)
+			}
+		}
+	}
+	return interruptedCpu
 }
 
 func getCpuNum() int {
@@ -130,11 +176,28 @@ func getCpuNum() int {
 	return num
 }
 
-var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
+var (
+	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+	targetBlockDevice  = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+	listenAddress = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
+)
+
+type Parameter struct {
+	Verbose bool
+	TargetBlockDevices []string
+	InterruptThreshold float32
+}
+
+var globalParam Parameter
+
+//var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
 
 func main() {
-	flag.Parse()
-	fmt.Print(*addr)
+
+	kingpin.Parse()
+
+	fmt.Println("listen-address:")
+	fmt.Println(*listenAddress)
 
 	rand.Seed(42)
 
@@ -185,12 +248,12 @@ func main() {
 	// initMetrics
 	//refreshRate := 3
 	findBlockDevices()
-	findInterruptedCpu()
+	findInterruptedCpu("virtio0-input")
 
 	go update(refreshRate)
 
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(*addr, nil))
+	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 
 }
 
