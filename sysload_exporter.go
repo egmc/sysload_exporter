@@ -22,58 +22,9 @@ const (
 	namespace = "sysload"
 )
 
-//type myCollector struct{}
-
 var refreshRate = 5
 
-//var (
-//	sysload = prometheus.NewGauge(prometheus.GaugeOpts{
-//		Namespace: namespace,
-//		Name:      "sysload",
-//		Help:      "Sysload",
-//	})
-//	sysloadOne = prometheus.NewGauge(prometheus.GaugeOpts{
-//		Namespace: namespace,
-//		Name:      "sysload_one",
-//		Help:      "Sysload 1 min",
-//	})
-//	sysloadFive = prometheus.NewGauge(prometheus.GaugeOpts{
-//		Namespace: namespace,
-//		Name:      "sysload_five",
-//		Help:      "sysload five help",
-//	})
-//
-//	sysloadFifteen = prometheus.NewGauge(prometheus.GaugeOpts{
-//		Namespace: namespace,
-//		Name:      "sysload_fifteen",
-//		Help:      "Sysload 15 min",
-//	})
-//
-//)
-
 var metrics map[string]prometheus.Gauge
-
-
-//func (c myCollector) Describe(ch chan<- *prometheus.Desc) {
-//	ch <- sysloadFive.Desc()
-//}
-//
-//func (c myCollector) Collect(ch chan<- prometheus.Metric) {
-//	exampleValue := float64(12345)
-//
-//	timeNow := time.Now()
-//	fmt.Println(timeNow)
-//
-//	ch <- prometheus.MustNewConstMetric(
-//		sysloadFive.Desc(),
-//		prometheus.GaugeValue,
-//		float64(exampleValue),
-//	)
-//}
-
-func init() {
-
-}
 
 func findBlockDevices() []string {
 
@@ -176,37 +127,7 @@ func getCpuNum() int {
 	return num
 }
 
-var (
-	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
-	targetBlockDevice  = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
-	listenAddress = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
-)
-
-type Parameter struct {
-	Verbose bool
-	TargetBlockDevices []string
-	InterruptThreshold float32
-}
-
-var globalParam Parameter
-
-//var addr = flag.String("listen-address", ":5000", "The address to listen on for HTTP requests.")
-
-func main() {
-
-	kingpin.Parse()
-
-	fmt.Println("listen-address:")
-	fmt.Println(*listenAddress)
-
-	rand.Seed(42)
-
-	metrics = make(map[string]prometheus.Gauge)
-	metrics["sysload30"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "sysload30",
-		Help:      "Sysload30",
-	})
+func initMetrics(metrics map[string]prometheus.Gauge) {
 
 	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
@@ -230,24 +151,47 @@ func main() {
 		Help:      "Sysload 15 min",
 	})
 
-	//prometheus.MustRegister(metrics...)
-	//
-	////var c myCollector
-	//prometheus.MustRegister(sysload)
-	//prometheus.MustRegister(sysloadOne)
-	//prometheus.MustRegister(sysloadFive)
-	//prometheus.MustRegister(sysloadFifteen)
+
+
+}
+
+var (
+	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+	targetBlockDevice  = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+	listenAddress = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
+	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float32()
+)
+
+type Parameter struct {
+	Verbose bool
+	TargetBlockDevices []string
+	InterruptThreshold float32
+}
+
+var globalParam Parameter
+
+
+func main() {
+
+	kingpin.Parse()
+
+	fmt.Println("listen-address:")
+	fmt.Println(*listenAddress)
+	log.Println("interruptedThreshold")
+	log.Println(*interruptedThreshold)
+
+	rand.Seed(42)
+
+	metrics = make(map[string]prometheus.Gauge)
+
+	initMetrics(metrics)
+
 	for _, e := range metrics {
 		prometheus.MustRegister(e)
 	}
 
 
-	//sysloadFive.Set(100)
-	//init()
-
-	// initMetrics
-	//refreshRate := 3
-	findBlockDevices()
+	globalParam.TargetBlockDevices = findBlockDevices()
 	findInterruptedCpu("virtio0-input")
 
 	go update(refreshRate)
