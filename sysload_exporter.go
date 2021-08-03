@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+	"github.com/tklauser/go-sysconf"
 )
 
 const (
@@ -23,6 +24,7 @@ const (
 )
 
 var refreshRate = 5
+var UserHz int64
 
 var metrics map[string]prometheus.Gauge
 
@@ -151,6 +153,13 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		Help:      "Sysload 15 min",
 	})
 
+	for _, dev := range globalParam.TargetBlockDevices {
+		metrics[dev +  "io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Name: dev + "_io_util",
+			Help: dev + " IO Util",
+		})
+	}
 
 
 }
@@ -181,6 +190,12 @@ func main() {
 	log.Println(*interruptedThreshold)
 
 	rand.Seed(42)
+	UserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
+	if err == nil {
+		fmt.Printf("SC_CLK_TCK: %v\n", UserHz)
+	}
+
+	globalParam.TargetBlockDevices = findBlockDevices()
 
 	metrics = make(map[string]prometheus.Gauge)
 
@@ -191,7 +206,6 @@ func main() {
 	}
 
 
-	globalParam.TargetBlockDevices = findBlockDevices()
 	findInterruptedCpu("virtio0-input")
 
 	go update(refreshRate)
