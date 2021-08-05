@@ -27,6 +27,8 @@ var refreshRate = 5
 var UserHz int64
 
 var metrics map[string]prometheus.Gauge
+var stats map[string]uint64
+
 
 func findBlockDevices() []string {
 
@@ -129,6 +131,36 @@ func getCpuNum() int {
 	return num
 }
 
+func updateIoStat() {
+
+	f, err := os.Open("/proc/diskstats")
+	if err != nil{
+		fmt.Println("error")
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+
+	for scanner.Scan() {
+		l := scanner.Text()
+		e := strings.Fields(l)
+		for _, d := range globalParam.TargetBlockDevices {
+			if d != e[2] {
+				continue
+			}
+			k := e[2]
+			if strings.Contains(e[2], "cciss") {
+				k = "cciss"
+			}
+			v, _ := strconv.ParseUint(e[12], 10, 64)
+			stats[k + "_io_util"] = v
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func initMetrics(metrics map[string]prometheus.Gauge) {
 
 	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -198,6 +230,7 @@ func main() {
 	globalParam.TargetBlockDevices = findBlockDevices()
 
 	metrics = make(map[string]prometheus.Gauge)
+	stats = make(map[string]uint64)
 
 	initMetrics(metrics)
 
@@ -220,6 +253,11 @@ func update(refreshRate int) {
 	for {
 		i++
 		time.Sleep(time.Duration(refreshRate) * time.Second)
+
+		updateIoStat()
+
+		log.Println(stats)
+
 		fmt.Printf("metric updated: %d \n", i)
 		//sysloadFive.Set(rand.Float64())
 		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
