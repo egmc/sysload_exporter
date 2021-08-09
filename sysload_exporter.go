@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
+	"math"
 	"math/rand"
 	"net/http"
 	"os"
@@ -29,6 +30,22 @@ var UserHz int64
 var metrics map[string]prometheus.Gauge
 var stats map[string]uint64
 
+// return wrapped value
+func counterWrap(num int64) int64 {
+	if num > math.MaxUint32 {
+		num = math.MaxUint32
+	} else if num < 0 {
+		if (num + math.MaxUint32 + 1) >= 0 {
+			// 32bit
+			num += math.MaxUint32 + 1
+		} else if (num + math.MaxUint64 + 1) >= 0 && (num + math.MaxUint64 + 1) <= math.MaxUint32 {
+			num += math.MaxUint64 + 1
+		} else {
+			num =  math.MaxUint32
+		}
+	}
+	return num
+}
 
 func findBlockDevices() []string {
 
