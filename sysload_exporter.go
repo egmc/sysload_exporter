@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/tklauser/go-sysconf"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
 	"math"
@@ -17,7 +18,6 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
-	"github.com/tklauser/go-sysconf"
 )
 
 const (
@@ -29,6 +29,7 @@ var UserHz int64
 
 var metrics map[string]prometheus.Gauge
 var stats map[string]uint64
+var statsPrev map[string]uint64
 
 // return wrapped value
 func counterWrap(num float64) float64 {
@@ -102,7 +103,8 @@ func findInterruptedCpu(targetDevice string) []string {
 		}
 
 		e := strings.Fields(l)[1:]
-		//fmt.Println(e)
+		log.Println("interrupted cpu field: ")
+		log.Println(e)
 
 		for i := range make([]int, cpuNum) {
 			fmt.Println(i)
@@ -119,7 +121,7 @@ func findInterruptedCpu(targetDevice string) []string {
 						break
 					}
 				}
-				interruptedCpu = append(interruptedCpu, s)
+				interruptedCpu = append(interruptedCpu, strconv.Itoa(i))
 			}
 		}
 	}
@@ -224,6 +226,7 @@ type Parameter struct {
 	Verbose bool
 	TargetBlockDevices []string
 	InterruptThreshold float32
+	TargetNetworkDevices []string
 }
 
 var globalParam Parameter
@@ -245,6 +248,8 @@ func main() {
 	}
 
 	globalParam.TargetBlockDevices = findBlockDevices()
+	globalParam.TargetNetworkDevices = []string {"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
+	log.Println(globalParam)
 
 	metrics = make(map[string]prometheus.Gauge)
 	stats = make(map[string]uint64)
@@ -279,7 +284,17 @@ func updateMetrics(refreshRate int) {
 		}
 	}
 
+	// init interrupted cpu group
+	interruptedCpuGroup := make(map[string][]string)
+	for _,d := range globalParam.TargetNetworkDevices {
+		r := findInterruptedCpu(d)
+		if len(r) > 0 {
+			interruptedCpuGroup[d] = r
+		}
+	}
+
 	log.Println(sysloadArrayMap)
+	log.Println(interruptedCpuGroup)
 
 	counter := 0
 
