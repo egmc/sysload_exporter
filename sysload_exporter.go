@@ -31,7 +31,7 @@ var metrics map[string]prometheus.Gauge
 var stats map[string]uint64
 
 // return wrapped value
-func counterWrap(num int64) int64 {
+func counterWrap(num float64) float64 {
 	if num > math.MaxUint32 {
 		num = math.MaxUint32
 	} else if num < 0 {
@@ -258,24 +258,40 @@ func main() {
 
 	findInterruptedCpu("virtio0-input")
 
-	go update(refreshRate)
+	go updateMetrics(refreshRate)
 
 	http.Handle("/metrics", promhttp.Handler())
 	log.Fatal(http.ListenAndServe(*listenAddress, nil))
 
 }
 
-func update(refreshRate int) {
-	i := 0
+func updateMetrics(refreshRate int) {
+
+	// init sysload map
+	sysloadArrayMap := make(map[string][]float32)
+
+	sysloadArrayMap["sys_load_one"] = make([]float32, 60 / refreshRate)
+	sysloadArrayMap["sys_load_five"] = make([]float32, 300 / refreshRate)
+	sysloadArrayMap["sys_load_fifteen"]  = make([]float32, 900 / refreshRate)
+	for _,v := range sysloadArrayMap {
+		for i, _ := range v {
+			v[i] = 0.0
+		}
+	}
+
+	log.Println(sysloadArrayMap)
+
+	counter := 0
+
 	for {
-		i++
+		counter++
 		time.Sleep(time.Duration(refreshRate) * time.Second)
 
 		updateIoStat()
 
 		log.Println(stats)
 
-		fmt.Printf("metric updated: %d \n", i)
+		fmt.Printf("metric updated: %d \n", counter)
 		//sysloadFive.Set(rand.Float64())
 		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
 		for _, e := range metrics {
