@@ -28,8 +28,6 @@ var refreshRate = 5
 var UserHz int64
 
 var metrics map[string]prometheus.Gauge
-var stats map[string]uint64
-var statsPrev map[string]uint64
 
 // return wrapped value
 func counterWrap(num float64) float64 {
@@ -150,7 +148,7 @@ func getCpuNum() int {
 	return num
 }
 
-func updateIoStat() {
+func updateIoStat(stats map[string]uint64) {
 
 	f, err := os.Open("/proc/diskstats")
 	if err != nil{
@@ -205,7 +203,7 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 	})
 
 	for _, dev := range globalParam.TargetBlockDevices {
-		metrics[dev +  "io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		metrics[dev +  "_io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Name: dev + "_io_util",
 			Help: dev + " IO Util",
@@ -252,7 +250,6 @@ func main() {
 	log.Println(globalParam)
 
 	metrics = make(map[string]prometheus.Gauge)
-	stats = make(map[string]uint64)
 
 	initMetrics(metrics)
 
@@ -271,6 +268,10 @@ func main() {
 }
 
 func updateMetrics(refreshRate int) {
+
+	stats := make(map[string]uint64)
+	statsPrev := make(map[string]uint64)
+	var statTime, statTimePrev time.Time
 
 	// init sysload map
 	sysloadArrayMap := make(map[string][]float32)
@@ -300,21 +301,51 @@ func updateMetrics(refreshRate int) {
 
 	for {
 		counter++
-		time.Sleep(time.Duration(refreshRate) * time.Second)
 
-		updateIoStat()
+		statTime = time.Now()
+
+		updateIoStat(stats)
 
 		log.Println(stats)
+		log.Println(statsPrev)
+		log.Println(statTime)
+		log.Println(statTimePrev)
 
-		fmt.Printf("metric updated: %d \n", counter)
+		if !statTimePrev.IsZero() {
+			log.Println("prev is  not zero")
+			log.Println(stats)
+			log.Println(statsPrev)
+			log.Println(statTime)
+			log.Println(statTimePrev)
+			timeDiffMs := statTime.Sub(statTimePrev).Milliseconds()
+			log.Println(timeDiffMs)
+			log.Println(metrics)
+
+			for k, v := range stats {
+				diff := counterWrap(float64(v - statsPrev[k]))
+				metrics[k].Set(diff / float64(timeDiffMs) * 100)
+			}
+
+		}
+
+
 		//sysloadFive.Set(rand.Float64())
 		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
-		for _, e := range metrics {
-			e.Set(rand.Float64())
-			//if g, ok := e.(prometheus.Gauge); ok {
-			//	g.Set(rand.Float64())
-			//}
+		//for _, e := range metrics {
+		//	e.Set(rand.Float64())
+		//	//if g, ok := e.(prometheus.Gauge); ok {
+		//	//	g.Set(rand.Float64())
+		//	//}
+		//}
+
+		// copy
+		for k,v := range stats {
+			statsPrev[k] = v
 		}
+		statTimePrev = statTime
+
+		fmt.Printf("metric updated: %d \n", counter)
+		time.Sleep(time.Duration(refreshRate) * time.Second)
 	}
 
 }
