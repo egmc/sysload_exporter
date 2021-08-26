@@ -26,6 +26,17 @@ const (
 
 var refreshRate = 5
 var UserHz int64
+var NumCPU int
+
+var ProcStatFieldMap = map[string]int {
+	"user": 1,
+	"nice": 2,
+	"system": 3,
+	"idle": 4,
+	"wio": 5,
+	"intr": 6,
+	"sintr": 7,
+}
 
 var metrics map[string]prometheus.Gauge
 
@@ -148,6 +159,10 @@ func getCpuNum() int {
 	return num
 }
 
+func addJiffies(elm map[string]string, prefix string, stats map[string]uint64) {
+
+}
+
 func updateIoStat(stats map[string]uint64) {
 
 	f, err := os.Open("/proc/diskstats")
@@ -240,10 +255,12 @@ func main() {
 	log.Println(*interruptedThreshold)
 
 	rand.Seed(42)
-	UserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
+	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
+	NumCPU = getCpuNum()
 	if err == nil {
-		fmt.Printf("SC_CLK_TCK: %v\n", UserHz)
+		fmt.Printf("SC_CLK_TCK: %v\n", confUserHz)
 	}
+	UserHz = confUserHz
 
 	globalParam.TargetBlockDevices = findBlockDevices()
 	globalParam.TargetNetworkDevices = []string {"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
@@ -325,6 +342,7 @@ func updateMetrics(refreshRate int) {
 				diff := counterWrap(float64(v - statsPrev[k]))
 				metrics[k].Set(diff / float64(timeDiffMs) * 100)
 			}
+			log.Println(metrics)
 
 		}
 
