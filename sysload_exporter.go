@@ -225,7 +225,52 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		})
 	}
 
+	metrics["si_user"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_user",
+		Help:      "Software Interrupted CPU User",
+	})
+	metrics["si_cpu_nice"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_nice",
+		Help:      "Software Interrupted CPU Nice",
+	})
+	metrics["si_cpu_system"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_system",
+		Help:      "Software Interrupted CPU System",
+	})
+	metrics["si_cpu_idle"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_idle",
+		Help:      "Software Interrupted CPU Idle",
+	})
+	metrics["si_cpu_wio"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_wio",
+		Help:      "Software Interrupted CPU wio",
+	})
+	metrics["si_intr"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_intr",
+		Help:      "Software Interrupted CPU Intr",
+	})
+	metrics["si_sintr"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu_sintr",
+		Help:      "Software Interrupted CPU SIntr",
+	})
 
+	metrics["proc_ctxt"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "proc_ctxt",
+		Help:      "Context Switch",
+	})
+	metrics["proc_intr"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "proc_intr",
+		Help:      "Interrupts",
+	})
 }
 
 var (
