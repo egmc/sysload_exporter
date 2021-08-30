@@ -159,8 +159,88 @@ func getCpuNum() int {
 	return num
 }
 
-func addJiffies(elm map[string]string, prefix string, stats map[string]uint64) {
+func addJiffies(e []string, prefix string, stats map[string]uint64) {
+	for k, v := range ProcStatFieldMap {
+		u, _ := strconv.ParseUint(e[v], 10, 64)
+		stats[prefix + k] += u
+		stats[prefix + "_total"] += u
+	}
 
+}
+
+func addAllCpuJiffies(e []string, stats map[string]uint64) {
+	addJiffies(e, "all_cpu", stats)
+}
+
+func updateCpuStat(stats map[string]uint64) {
+
+	f, err := os.Open("/proc/stat")
+	if err != nil{
+		fmt.Println("error")
+	}
+
+	defer f.Close()
+
+	for dev, cpus := range globalParam.InterruptedCpuGroup {
+		stats["proc_ctxt"] = 0
+		stats["proc_intr"] = 0
+
+		allcpu := false
+		if len(cpus) == NumCPU{
+			allcpu = true
+		}
+
+		f.Seek(0, 0)
+
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			l := scanner.Text()
+			e := strings.Fields(l)
+
+			if len(e) < 2 {
+				continue
+			}
+			_, parseError := strconv.ParseUint(e[1], 10, 64)
+			if parseError != nil {
+				continue
+			}
+			if e[0] == "ctxt" &&  stats["proc_ctxt"] == 0 {
+				u, _ := strconv.ParseUint(e[1], 10, 64)
+				stats["proc_ctxt"] = u
+				continue
+			}
+			if e[0] == "intr" &&  stats["proc_intr"] == 0 {
+				u, _ := strconv.ParseUint(e[1], 10, 64)
+				stats["proc_intr"] = u
+				continue
+			}
+			if !strings.Contains(e[0], "cpu") {
+				continue
+			}
+
+			if e[0] == "cpu" {
+				addAllCpuJiffies(e, stats)
+				if allcpu {
+					addJiffies(e, dev, stats)
+				}
+			} else {
+				n := strings.Replace(e[0],"cpu", "", -1)
+				_, converter := strconv.Atoi(n)
+				if converter != nil {
+					isInterrupted := false
+					for _, iCpu := range globalParam.InterruptedCpuGroup[dev] {
+						if iCpu == n {
+							isInterrupted = true
+							break
+						}
+					}
+					if (isInterrupted) {
+						addJiffies(e, dev, stats)
+					}
+				}
+			}
+		}
+	}
 }
 
 func updateIoStat(stats map[string]uint64) {
@@ -285,6 +365,7 @@ type Parameter struct {
 	TargetBlockDevices []string
 	InterruptThreshold float32
 	TargetNetworkDevices []string
+	InterruptedCpuGroup map[string][]string
 }
 
 var globalParam Parameter
@@ -309,6 +390,16 @@ func main() {
 
 	globalParam.TargetBlockDevices = findBlockDevices()
 	globalParam.TargetNetworkDevices = []string {"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
+
+	// init interrupted cpu group
+	globalParam.InterruptedCpuGroup = make(map[string][]string)
+	for _,d := range globalParam.TargetNetworkDevices {
+		r := findInterruptedCpu(d)
+		if len(r) > 0 {
+			globalParam.InterruptedCpuGroup[d] = r
+		}
+	}
+
 	log.Println(globalParam)
 
 	metrics = make(map[string]prometheus.Gauge)
@@ -318,9 +409,6 @@ func main() {
 	for _, e := range metrics {
 		prometheus.MustRegister(e)
 	}
-
-
-	findInterruptedCpu("virtio0-input")
 
 	go updateMetrics(refreshRate)
 
@@ -347,17 +435,7 @@ func updateMetrics(refreshRate int) {
 		}
 	}
 
-	// init interrupted cpu group
-	interruptedCpuGroup := make(map[string][]string)
-	for _,d := range globalParam.TargetNetworkDevices {
-		r := findInterruptedCpu(d)
-		if len(r) > 0 {
-			interruptedCpuGroup[d] = r
-		}
-	}
-
 	log.Println(sysloadArrayMap)
-	log.Println(interruptedCpuGroup)
 
 	counter := 0
 
