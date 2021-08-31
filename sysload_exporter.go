@@ -447,10 +447,6 @@ func updateMetrics(refreshRate int) {
 		updateIoStat(stats)
 		updateCpuStat(stats)
 
-		//log.Println(stats)
-		//log.Println(statsPrev)
-		//log.Println(statTime)
-		//log.Println(statTimePrev)
 
 		if !statTimePrev.IsZero() {
 			log.Println("prev is  not zero")
@@ -472,16 +468,6 @@ func updateMetrics(refreshRate int) {
 			log.Println(metrics)
 
 		}
-
-
-		//sysloadFive.Set(rand.Float64())
-		//metrics["sysload30"].(prometheus.NewGauge).Set(rand.Float64())
-		//for _, e := range metrics {
-		//	e.Set(rand.Float64())
-		//	//if g, ok := e.(prometheus.Gauge); ok {
-		//	//	g.Set(rand.Float64())
-		//	//}
-		//}
 
 		// copy
 		for k,v := range stats {
