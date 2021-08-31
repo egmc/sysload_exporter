@@ -162,7 +162,7 @@ func getCpuNum() int {
 func addJiffies(e []string, prefix string, stats map[string]uint64) {
 	for k, v := range ProcStatFieldMap {
 		u, _ := strconv.ParseUint(e[v], 10, 64)
-		stats[prefix + k] += u
+		stats[prefix + "_" + k] += u
 		stats[prefix + "_total"] += u
 	}
 
@@ -226,7 +226,7 @@ func updateCpuStat(stats map[string]uint64) {
 			} else {
 				n := strings.Replace(e[0],"cpu", "", -1)
 				_, converter := strconv.Atoi(n)
-				if converter != nil {
+				if converter == nil {
 					isInterrupted := false
 					for _, iCpu := range globalParam.InterruptedCpuGroup[dev] {
 						if iCpu == n {
@@ -445,11 +445,12 @@ func updateMetrics(refreshRate int) {
 		statTime = time.Now()
 
 		updateIoStat(stats)
+		updateCpuStat(stats)
 
-		log.Println(stats)
-		log.Println(statsPrev)
-		log.Println(statTime)
-		log.Println(statTimePrev)
+		//log.Println(stats)
+		//log.Println(statsPrev)
+		//log.Println(statTime)
+		//log.Println(statTimePrev)
 
 		if !statTimePrev.IsZero() {
 			log.Println("prev is  not zero")
@@ -459,11 +460,14 @@ func updateMetrics(refreshRate int) {
 			log.Println(statTimePrev)
 			timeDiffMs := statTime.Sub(statTimePrev).Milliseconds()
 			log.Println(timeDiffMs)
-			log.Println(metrics)
+			//log.Println(metrics)
 
 			for k, v := range stats {
-				diff := counterWrap(float64(v - statsPrev[k]))
-				metrics[k].Set(diff / float64(timeDiffMs) * 100)
+				re := regexp.MustCompile(`io_util`)
+				if re.MatchString(k) {
+					diff := counterWrap(float64(v - statsPrev[k]))
+					metrics[k].Set(diff / float64(timeDiffMs) * 100)
+				}
 			}
 			log.Println(metrics)
 
