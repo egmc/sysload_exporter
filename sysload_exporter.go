@@ -471,6 +471,7 @@ func updateMetrics(refreshRate int) {
 			log.Println(timeDiffMs)
 			//log.Println(metrics)
 
+			// si cpu
 			sintr := 0.0
 			busyDev := ""
 			for dev, _ := range globalParam.InterruptedCpuGroup {
@@ -499,7 +500,26 @@ func updateMetrics(refreshRate int) {
 				metricsValues["si_cpu_" + k] = metricsValues[busyDev + "_" + k]
 			}
 
+			// all cpu, proc
+			allCpuDiff := float64(cpuStats["all_cpu_total"] - cpuStatsPrev["all_cpu_total"])
+			for k, _ := range cpuStats {
+				if _, exists := cpuStatsPrev[k]; !exists {
+					continue
+				}
+				d := cpuStats[k] - cpuStatsPrev[k]
+				if d > 0.0 {
+					if strings.Contains(k, "all_cpu") {
+						metricsValues[k] = float64(d) / allCpuDiff * 100
+					}
+					if strings.Contains(k, "proc_ctxt") || strings.Contains(k, "proc_intr") {
+						// calc per sec increase
+						metricsValues[k] = float64(d) / float64(timeDiffMs / 1000)
+					}
+				}
 
+			}
+
+			//io
 			for k, v := range ioStats {
 				re := regexp.MustCompile(`io_util`)
 				if re.MatchString(k) {
