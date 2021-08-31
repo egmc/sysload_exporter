@@ -305,7 +305,7 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		})
 	}
 
-	metrics["si_user"] = prometheus.NewGauge(prometheus.GaugeOpts{
+	metrics["si_cpu_user"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "si_cpu_user",
 		Help:      "Software Interrupted CPU User",
@@ -351,6 +351,7 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		Name:      "proc_intr",
 		Help:      "Interrupts",
 	})
+
 }
 
 var (
@@ -419,9 +420,17 @@ func main() {
 
 func updateMetrics(refreshRate int) {
 
-	stats := make(map[string]uint64)
-	statsPrev := make(map[string]uint64)
+	ioStats := make(map[string]uint64)
+	ioStatsPrev := make(map[string]uint64)
+	cpuStats := make(map[string]uint64)
+	cpuStatsPrev := make(map[string]uint64)
 	var statTime, statTimePrev time.Time
+
+	// init metrics values
+	metricsValues := make(map[string]float64)
+	for k, _ := range metrics {
+		metricsValues[k] = 0.0
+	}
 
 	// init sysload map
 	sysloadArrayMap := make(map[string][]float32)
@@ -444,34 +453,74 @@ func updateMetrics(refreshRate int) {
 
 		statTime = time.Now()
 
-		updateIoStat(stats)
-		updateCpuStat(stats)
+		updateIoStat(ioStats)
+		updateCpuStat(cpuStats)
 
 
 		if !statTimePrev.IsZero() {
 			log.Println("prev is  not zero")
-			log.Println(stats)
-			log.Println(statsPrev)
+			log.Println(ioStats)
+			log.Println(ioStatsPrev)
+
+			log.Println(cpuStats)
+			log.Println(cpuStatsPrev)
+
 			log.Println(statTime)
 			log.Println(statTimePrev)
 			timeDiffMs := statTime.Sub(statTimePrev).Milliseconds()
 			log.Println(timeDiffMs)
 			//log.Println(metrics)
 
-			for k, v := range stats {
-				re := regexp.MustCompile(`io_util`)
-				if re.MatchString(k) {
-					diff := counterWrap(float64(v - statsPrev[k]))
-					metrics[k].Set(diff / float64(timeDiffMs) * 100)
+			sintr := 0.0
+			busyDev := ""
+			for dev, _ := range globalParam.InterruptedCpuGroup {
+				devDiff := float64(cpuStats[dev + "_total"] - cpuStatsPrev[dev + "_total"])
+				log.Println("dev diff: ")
+				log.Println(devDiff)
+				for k, _ := range cpuStats {
+					if strings.Contains(k, dev) {
+						d := float64(cpuStats[k] - cpuStatsPrev[k])
+						log.Println("d: ")
+						log.Println(d)
+						log.Println(k)
+						if d > 0 {
+							metricsValues[k] = d / devDiff * 100
+						} else {
+							metricsValues[k] = 0.0
+						}
+					}
+					if k == dev + "_sintr" && sintr <= metricsValues[k] {
+						sintr = metricsValues[k]
+						busyDev = dev
+					}
 				}
 			}
-			log.Println(metrics)
+			for k, _ := range ProcStatFieldMap {
+				metricsValues["si_cpu_" + k] = metricsValues[busyDev + "_" + k]
+			}
+
+
+			for k, v := range ioStats {
+				re := regexp.MustCompile(`io_util`)
+				if re.MatchString(k) {
+					diff := counterWrap(float64(v - ioStatsPrev[k]))
+					metricsValues[k] = diff / float64(timeDiffMs) * 100
+				}
+			}
+			for k, v := range metrics {
+				v.Set(metricsValues[k])
+			}
+
+			log.Println(metricsValues)
 
 		}
 
 		// copy
-		for k,v := range stats {
-			statsPrev[k] = v
+		for k,v := range ioStats {
+			ioStatsPrev[k] = v
+		}
+		for k,v := range cpuStats {
+			cpuStatsPrev[k] = v
 		}
 		statTimePrev = statTime
 
