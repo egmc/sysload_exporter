@@ -305,9 +305,8 @@ func calcSysLoad(metricsValues map[string]float64) float64 {
 	return sysLoad
 }
 
-func calcMovingAverage(sysLoad float64,loadList []float64) float64 {
-	loadList = loadList[1:]
-	loadList = append(loadList, sysLoad)
+func calcMovingAverage(loadList []float64) float64 {
+
 	sum := 0.0
 	for _, load := range loadList{
 		sum += load
@@ -573,8 +572,13 @@ func updateMetrics(refreshRate int) {
 			}
 			// sysLoad
 			metricsValues["sysload"] = calcSysLoad(metricsValues)
-			for k,v := range sysloadArrayMap {
-				metricsValues[k] = calcMovingAverage(metricsValues["sysload"], v)
+			for k,_ := range sysloadArrayMap {
+				sysloadArrayMap[k] = append(sysloadArrayMap[k][1:], metricsValues["sysload"])
+				log.Println("sysload:" + k)
+				log.Println(sysloadArrayMap[k])
+				log.Println(len(sysloadArrayMap[k]))
+				log.Println(cap(sysloadArrayMap[k]))
+				metricsValues[k] = calcMovingAverage(sysloadArrayMap[k])
 			}
 
 			// SetMetricsValues to export
