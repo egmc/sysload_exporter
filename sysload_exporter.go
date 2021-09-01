@@ -273,6 +273,52 @@ func updateIoStat(stats map[string]uint64) {
 	}
 }
 
+func calcSysLoad(metricsValues map[string]float64) float64 {
+	sysLoad := 0.0
+
+	log.Println("calcSysload")
+	for k, v := range metricsValues {
+		if strings.Contains(k, "_io_util") {
+			if v > sysLoad {
+				sysLoad = v
+				continue
+			}
+		}
+		if !strings.Contains(k, "_idle") {
+			continue
+		}
+		usage := 100.0 - v
+		if usage < sysLoad {
+			continue
+		}
+		if k == "all_cpu_idle" {
+			sysLoad = usage
+			continue
+		}
+		if k == "si_cpu_idle" {
+			if (metricsValues["si_cpu_intr"] + metricsValues["si_cpu_sintr"] + metricsValues["si_cpu_system"]) > globalParam.InterruptThreshold {
+				sysLoad = usage
+			}
+		}
+	}
+
+	return sysLoad
+}
+
+func calcMovingAverage(sysLoad float64,loadList []float64) float64 {
+	loadList = loadList[1:]
+	loadList = append(loadList, sysLoad)
+	sum := 0.0
+	for _, load := range loadList{
+		sum += load
+	}
+
+	return sum / float64(len(loadList))
+
+}
+
+
+
 func initMetrics(metrics map[string]prometheus.Gauge) {
 
 	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -358,13 +404,13 @@ var (
 	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
 	targetBlockDevice  = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
 	listenAddress = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
-	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float32()
+	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
 )
 
 type Parameter struct {
 	Verbose bool
 	TargetBlockDevices []string
-	InterruptThreshold float32
+	InterruptThreshold float64
 	TargetNetworkDevices []string
 	InterruptedCpuGroup map[string][]string
 }
@@ -418,6 +464,7 @@ func main() {
 
 }
 
+
 func updateMetrics(refreshRate int) {
 
 	ioStats := make(map[string]uint64)
@@ -433,11 +480,11 @@ func updateMetrics(refreshRate int) {
 	}
 
 	// init sysload map
-	sysloadArrayMap := make(map[string][]float32)
+	sysloadArrayMap := make(map[string][]float64)
 
-	sysloadArrayMap["sys_load_one"] = make([]float32, 60 / refreshRate)
-	sysloadArrayMap["sys_load_five"] = make([]float32, 300 / refreshRate)
-	sysloadArrayMap["sys_load_fifteen"]  = make([]float32, 900 / refreshRate)
+	sysloadArrayMap["sysload_one"] = make([]float64, 60 / refreshRate)
+	sysloadArrayMap["sysload_five"] = make([]float64, 300 / refreshRate)
+	sysloadArrayMap["sysload_fifteen"]  = make([]float64, 900 / refreshRate)
 	for _,v := range sysloadArrayMap {
 		for i, _ := range v {
 			v[i] = 0.0
@@ -521,12 +568,16 @@ func updateMetrics(refreshRate int) {
 
 			//io
 			for k, v := range ioStats {
-				re := regexp.MustCompile(`io_util`)
-				if re.MatchString(k) {
-					diff := counterWrap(float64(v - ioStatsPrev[k]))
-					metricsValues[k] = diff / float64(timeDiffMs) * 100
-				}
+				diff := counterWrap(float64(v - ioStatsPrev[k]))
+				metricsValues[k] = diff / float64(timeDiffMs) * 100
 			}
+			// sysLoad
+			metricsValues["sysload"] = calcSysLoad(metricsValues)
+			for k,v := range sysloadArrayMap {
+				metricsValues[k] = calcMovingAverage(metricsValues["sysload"], v)
+			}
+
+			// SetMetricsValues to export
 			for k, v := range metrics {
 				v.Set(metricsValues[k])
 			}
