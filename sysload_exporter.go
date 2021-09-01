@@ -28,14 +28,14 @@ var refreshRate = 5
 var UserHz int64
 var NumCPU int
 
-var ProcStatFieldMap = map[string]int {
-	"user": 1,
-	"nice": 2,
+var ProcStatFieldMap = map[string]int{
+	"user":   1,
+	"nice":   2,
 	"system": 3,
-	"idle": 4,
-	"wio": 5,
-	"intr": 6,
-	"sintr": 7,
+	"idle":   4,
+	"wio":    5,
+	"intr":   6,
+	"sintr":  7,
 }
 
 var metrics map[string]prometheus.Gauge
@@ -48,10 +48,10 @@ func counterWrap(num float64) float64 {
 		if (num + math.MaxUint32 + 1) >= 0 {
 			// 32bit
 			num += math.MaxUint32 + 1
-		} else if (num + math.MaxUint64 + 1) >= 0 && (num + math.MaxUint64 + 1) <= math.MaxUint32 {
+		} else if (num+math.MaxUint64+1) >= 0 && (num+math.MaxUint64+1) <= math.MaxUint32 {
 			num += math.MaxUint64 + 1
 		} else {
-			num =  math.MaxUint32
+			num = math.MaxUint32
 		}
 	}
 	return num
@@ -63,7 +63,7 @@ func findBlockDevices() []string {
 	r := regexp.MustCompile("^(x?[svh]d[a-z]|cciss\\/c0d0|fio[a-z])$")
 
 	f, err := os.Open("/proc/diskstats")
-	if err != nil{
+	if err != nil {
 		fmt.Println("error")
 	}
 	defer f.Close()
@@ -95,12 +95,11 @@ func findInterruptedCpu(targetDevice string) []string {
 	fmt.Printf("num: %d\n", cpuNum)
 
 	f, err := os.Open("/proc/interrupts")
-	if err != nil{
+	if err != nil {
 		fmt.Println("error")
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
-
 
 	for scanner.Scan() {
 		l := scanner.Text()
@@ -118,13 +117,13 @@ func findInterruptedCpu(targetDevice string) []string {
 		for i := range make([]int, cpuNum) {
 			fmt.Println(i)
 			s := e[i]
-			n, err :=  strconv.Atoi(s)
+			n, err := strconv.Atoi(s)
 			if err != nil {
 				fmt.Println("error")
 			}
 			r, _ := utf8.DecodeLastRuneInString(s)
 
-			if unicode.IsDigit(r)  && n > 0 {
+			if unicode.IsDigit(r) && n > 0 {
 				for _, v := range interruptedCpu {
 					if v == s {
 						break
@@ -140,12 +139,12 @@ func findInterruptedCpu(targetDevice string) []string {
 func getCpuNum() int {
 	num := 0
 	f, err := os.Open("/proc/cpuinfo")
-	if err != nil{
+	if err != nil {
 		fmt.Println("error")
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
-	r := regexp.MustCompile("^processor");
+	r := regexp.MustCompile("^processor")
 
 	for scanner.Scan() {
 		if r.Match(scanner.Bytes()) {
@@ -162,8 +161,8 @@ func getCpuNum() int {
 func addJiffies(e []string, prefix string, stats map[string]uint64) {
 	for k, v := range ProcStatFieldMap {
 		u, _ := strconv.ParseUint(e[v], 10, 64)
-		stats[prefix + "_" + k] += u
-		stats[prefix + "_total"] += u
+		stats[prefix+"_"+k] += u
+		stats[prefix+"_total"] += u
 	}
 
 }
@@ -175,7 +174,7 @@ func addAllCpuJiffies(e []string, stats map[string]uint64) {
 func updateCpuStat(stats map[string]uint64) {
 
 	f, err := os.Open("/proc/stat")
-	if err != nil{
+	if err != nil {
 		fmt.Println("error")
 	}
 
@@ -186,7 +185,7 @@ func updateCpuStat(stats map[string]uint64) {
 		stats["proc_intr"] = 0
 
 		allcpu := false
-		if len(cpus) == NumCPU{
+		if len(cpus) == NumCPU {
 			allcpu = true
 		}
 
@@ -204,12 +203,12 @@ func updateCpuStat(stats map[string]uint64) {
 			if parseError != nil {
 				continue
 			}
-			if e[0] == "ctxt" &&  stats["proc_ctxt"] == 0 {
+			if e[0] == "ctxt" && stats["proc_ctxt"] == 0 {
 				u, _ := strconv.ParseUint(e[1], 10, 64)
 				stats["proc_ctxt"] = u
 				continue
 			}
-			if e[0] == "intr" &&  stats["proc_intr"] == 0 {
+			if e[0] == "intr" && stats["proc_intr"] == 0 {
 				u, _ := strconv.ParseUint(e[1], 10, 64)
 				stats["proc_intr"] = u
 				continue
@@ -224,7 +223,7 @@ func updateCpuStat(stats map[string]uint64) {
 					addJiffies(e, dev, stats)
 				}
 			} else {
-				n := strings.Replace(e[0],"cpu", "", -1)
+				n := strings.Replace(e[0], "cpu", "", -1)
 				_, converter := strconv.Atoi(n)
 				if converter == nil {
 					isInterrupted := false
@@ -234,7 +233,7 @@ func updateCpuStat(stats map[string]uint64) {
 							break
 						}
 					}
-					if (isInterrupted) {
+					if isInterrupted {
 						addJiffies(e, dev, stats)
 					}
 				}
@@ -246,7 +245,7 @@ func updateCpuStat(stats map[string]uint64) {
 func updateIoStat(stats map[string]uint64) {
 
 	f, err := os.Open("/proc/diskstats")
-	if err != nil{
+	if err != nil {
 		fmt.Println("error")
 	}
 	defer f.Close()
@@ -264,7 +263,7 @@ func updateIoStat(stats map[string]uint64) {
 				k = "cciss"
 			}
 			v, _ := strconv.ParseUint(e[12], 10, 64)
-			stats[k + "_io_util"] = v
+			stats[k+"_io_util"] = v
 		}
 	}
 
@@ -308,15 +307,13 @@ func calcSysLoad(metricsValues map[string]float64) float64 {
 func calcMovingAverage(loadList []float64) float64 {
 
 	sum := 0.0
-	for _, load := range loadList{
+	for _, load := range loadList {
 		sum += load
 	}
 
 	return sum / float64(len(loadList))
 
 }
-
-
 
 func initMetrics(metrics map[string]prometheus.Gauge) {
 
@@ -343,10 +340,10 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 	})
 
 	for _, dev := range globalParam.TargetBlockDevices {
-		metrics[dev +  "_io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
+		metrics[dev+"_io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: namespace,
-			Name: dev + "_io_util",
-			Help: dev + " IO Util",
+			Name:      dev + "_io_util",
+			Help:      dev + " IO Util",
 		})
 	}
 
@@ -400,22 +397,21 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 }
 
 var (
-	verbose = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
-	targetBlockDevice  = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
-	listenAddress = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
+	verbose              = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
 	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
 )
 
 type Parameter struct {
-	Verbose bool
-	TargetBlockDevices []string
-	InterruptThreshold float64
+	Verbose              bool
+	TargetBlockDevices   []string
+	InterruptThreshold   float64
 	TargetNetworkDevices []string
-	InterruptedCpuGroup map[string][]string
+	InterruptedCpuGroup  map[string][]string
 }
 
 var globalParam Parameter
-
 
 func main() {
 
@@ -435,11 +431,11 @@ func main() {
 	UserHz = confUserHz
 
 	globalParam.TargetBlockDevices = findBlockDevices()
-	globalParam.TargetNetworkDevices = []string {"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
+	globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
 
 	// init interrupted cpu group
 	globalParam.InterruptedCpuGroup = make(map[string][]string)
-	for _,d := range globalParam.TargetNetworkDevices {
+	for _, d := range globalParam.TargetNetworkDevices {
 		r := findInterruptedCpu(d)
 		if len(r) > 0 {
 			globalParam.InterruptedCpuGroup[d] = r
@@ -463,7 +459,6 @@ func main() {
 
 }
 
-
 func updateMetrics(refreshRate int) {
 
 	ioStats := make(map[string]uint64)
@@ -481,10 +476,10 @@ func updateMetrics(refreshRate int) {
 	// init sysload map
 	sysloadArrayMap := make(map[string][]float64)
 
-	sysloadArrayMap["sysload_one"] = make([]float64, 60 / refreshRate)
-	sysloadArrayMap["sysload_five"] = make([]float64, 300 / refreshRate)
-	sysloadArrayMap["sysload_fifteen"]  = make([]float64, 900 / refreshRate)
-	for _,v := range sysloadArrayMap {
+	sysloadArrayMap["sysload_one"] = make([]float64, 60/refreshRate)
+	sysloadArrayMap["sysload_five"] = make([]float64, 300/refreshRate)
+	sysloadArrayMap["sysload_fifteen"] = make([]float64, 900/refreshRate)
+	for _, v := range sysloadArrayMap {
 		for i, _ := range v {
 			v[i] = 0.0
 		}
@@ -501,7 +496,6 @@ func updateMetrics(refreshRate int) {
 
 		updateIoStat(ioStats)
 		updateCpuStat(cpuStats)
-
 
 		if !statTimePrev.IsZero() {
 			log.Println("prev is  not zero")
@@ -521,7 +515,7 @@ func updateMetrics(refreshRate int) {
 			sintr := 0.0
 			busyDev := ""
 			for dev, _ := range globalParam.InterruptedCpuGroup {
-				devDiff := float64(cpuStats[dev + "_total"] - cpuStatsPrev[dev + "_total"])
+				devDiff := float64(cpuStats[dev+"_total"] - cpuStatsPrev[dev+"_total"])
 				log.Println("dev diff: ")
 				log.Println(devDiff)
 				for k, _ := range cpuStats {
@@ -536,14 +530,14 @@ func updateMetrics(refreshRate int) {
 							metricsValues[k] = 0.0
 						}
 					}
-					if k == dev + "_sintr" && sintr <= metricsValues[k] {
+					if k == dev+"_sintr" && sintr <= metricsValues[k] {
 						sintr = metricsValues[k]
 						busyDev = dev
 					}
 				}
 			}
 			for k, _ := range ProcStatFieldMap {
-				metricsValues["si_cpu_" + k] = metricsValues[busyDev + "_" + k]
+				metricsValues["si_cpu_"+k] = metricsValues[busyDev+"_"+k]
 			}
 
 			// all cpu, proc
@@ -559,7 +553,7 @@ func updateMetrics(refreshRate int) {
 					}
 					if strings.Contains(k, "proc_ctxt") || strings.Contains(k, "proc_intr") {
 						// calc per sec increase
-						metricsValues[k] = float64(d) / float64(timeDiffMs / 1000)
+						metricsValues[k] = float64(d) / float64(timeDiffMs/1000)
 					}
 				}
 
@@ -572,7 +566,7 @@ func updateMetrics(refreshRate int) {
 			}
 			// sysLoad
 			metricsValues["sysload"] = calcSysLoad(metricsValues)
-			for k,_ := range sysloadArrayMap {
+			for k, _ := range sysloadArrayMap {
 				sysloadArrayMap[k] = append(sysloadArrayMap[k][1:], metricsValues["sysload"])
 				log.Println("sysload:" + k)
 				log.Println(sysloadArrayMap[k])
@@ -591,10 +585,10 @@ func updateMetrics(refreshRate int) {
 		}
 
 		// copy
-		for k,v := range ioStats {
+		for k, v := range ioStats {
 			ioStatsPrev[k] = v
 		}
-		for k,v := range cpuStats {
+		for k, v := range cpuStats {
 			cpuStatsPrev[k] = v
 		}
 		statTimePrev = statTime
