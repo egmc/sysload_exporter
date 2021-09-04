@@ -551,6 +551,7 @@ var globalParam Parameter
 
 func main() {
 
+	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
 	// set up logger
