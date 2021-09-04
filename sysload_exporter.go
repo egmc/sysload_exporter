@@ -6,10 +6,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tklauser/go-sysconf"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/alecthomas/kingpin.v2"
-	"log"
 	"math"
-	"math/rand"
 	"net/http"
 	"os"
 	"regexp"
@@ -39,6 +39,7 @@ var ProcStatFieldMap = map[string]int{
 }
 
 var metrics map[string]prometheus.Gauge
+var log  *zap.SugaredLogger
 
 // return wrapped value
 func counterWrap(num float64) float64 {
@@ -64,14 +65,13 @@ func findBlockDevices() []string {
 
 	f, err := os.Open("/proc/diskstats")
 	if err != nil {
-		fmt.Println("error")
+		log.Fatal("couldn't open /proc/diskstats")
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
 
 	for scanner.Scan() {
 		e := strings.Fields(scanner.Text())
-		//fmt.Println(e[2])
 		m := r.Find([]byte(e[2]))
 		if m != nil {
 			devices = append(devices, string(m))
@@ -82,8 +82,6 @@ func findBlockDevices() []string {
 		log.Fatal(err)
 	}
 
-	fmt.Println(devices)
-
 	return devices
 }
 
@@ -92,11 +90,10 @@ func findInterruptedCpu(targetDevice string) []string {
 	var interruptedCpu []string
 
 	cpuNum := getCpuNum()
-	fmt.Printf("num: %d\n", cpuNum)
 
 	f, err := os.Open("/proc/interrupts")
 	if err != nil {
-		fmt.Println("error")
+		log.Fatal("couldn't open /proc/interrupts")
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -111,15 +108,14 @@ func findInterruptedCpu(targetDevice string) []string {
 		}
 
 		e := strings.Fields(l)[1:]
-		log.Println("interrupted cpu field: ")
-		log.Println(e)
+		log.Debug("interrupted cpu field: ")
+		log.Debug(e)
 
 		for i := range make([]int, cpuNum) {
-			fmt.Println(i)
 			s := e[i]
 			n, err := strconv.Atoi(s)
 			if err != nil {
-				fmt.Println("error")
+				log.Fatal(e)
 			}
 			r, _ := utf8.DecodeLastRuneInString(s)
 
@@ -275,7 +271,7 @@ func updateIoStat(stats map[string]uint64) {
 func calcSysLoad(metricsValues map[string]float64) float64 {
 	sysLoad := 0.0
 
-	log.Println("calcSysload")
+	log.Debug("calcSysload")
 	for k, v := range metricsValues {
 		if strings.Contains(k, "_io_util") {
 			if v > sysLoad {
@@ -396,69 +392,6 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 
 }
 
-var (
-	verbose              = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
-	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
-	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
-	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
-)
-
-type Parameter struct {
-	Verbose              bool
-	TargetBlockDevices   []string
-	InterruptThreshold   float64
-	TargetNetworkDevices []string
-	InterruptedCpuGroup  map[string][]string
-}
-
-var globalParam Parameter
-
-func main() {
-
-	kingpin.Parse()
-
-	fmt.Println("listen-address:")
-	fmt.Println(*listenAddress)
-	log.Println("interruptedThreshold")
-	log.Println(*interruptedThreshold)
-
-	rand.Seed(42)
-	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
-	NumCPU = getCpuNum()
-	if err == nil {
-		fmt.Printf("SC_CLK_TCK: %v\n", confUserHz)
-	}
-	UserHz = confUserHz
-
-	globalParam.TargetBlockDevices = findBlockDevices()
-	globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
-
-	// init interrupted cpu group
-	globalParam.InterruptedCpuGroup = make(map[string][]string)
-	for _, d := range globalParam.TargetNetworkDevices {
-		r := findInterruptedCpu(d)
-		if len(r) > 0 {
-			globalParam.InterruptedCpuGroup[d] = r
-		}
-	}
-
-	log.Println(globalParam)
-
-	metrics = make(map[string]prometheus.Gauge)
-
-	initMetrics(metrics)
-
-	for _, e := range metrics {
-		prometheus.MustRegister(e)
-	}
-
-	go updateMetrics(refreshRate)
-
-	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(*listenAddress, nil))
-
-}
-
 func updateMetrics(refreshRate int) {
 
 	ioStats := make(map[string]uint64)
@@ -485,7 +418,7 @@ func updateMetrics(refreshRate int) {
 		}
 	}
 
-	log.Println(sysloadArrayMap)
+	log.Debug(sysloadArrayMap)
 
 	counter := 0
 
@@ -498,32 +431,32 @@ func updateMetrics(refreshRate int) {
 		updateCpuStat(cpuStats)
 
 		if !statTimePrev.IsZero() {
-			log.Println("prev is  not zero")
-			log.Println(ioStats)
-			log.Println(ioStatsPrev)
+			log.Debug("prev is  not zero")
+			log.Debug(ioStats)
+			log.Debug(ioStatsPrev)
 
-			log.Println(cpuStats)
-			log.Println(cpuStatsPrev)
+			log.Debug(cpuStats)
+			log.Debug(cpuStatsPrev)
 
-			log.Println(statTime)
-			log.Println(statTimePrev)
+			log.Debug(statTime)
+			log.Debug(statTimePrev)
 			timeDiffMs := statTime.Sub(statTimePrev).Milliseconds()
-			log.Println(timeDiffMs)
-			//log.Println(metrics)
+			log.Debug(timeDiffMs)
+			//log.Debug(metrics)
 
 			// si cpu
 			sintr := 0.0
 			busyDev := ""
 			for dev, _ := range globalParam.InterruptedCpuGroup {
 				devDiff := float64(cpuStats[dev+"_total"] - cpuStatsPrev[dev+"_total"])
-				log.Println("dev diff: ")
-				log.Println(devDiff)
+				log.Debug("dev diff: ")
+				log.Debug(devDiff)
 				for k, _ := range cpuStats {
 					if strings.Contains(k, dev) {
 						d := float64(cpuStats[k] - cpuStatsPrev[k])
-						log.Println("d: ")
-						log.Println(d)
-						log.Println(k)
+						log.Debug("d: ")
+						log.Debug(d)
+						log.Debug(k)
 						if d > 0 {
 							metricsValues[k] = d / devDiff * 100
 						} else {
@@ -568,10 +501,10 @@ func updateMetrics(refreshRate int) {
 			metricsValues["sysload"] = calcSysLoad(metricsValues)
 			for k, _ := range sysloadArrayMap {
 				sysloadArrayMap[k] = append(sysloadArrayMap[k][1:], metricsValues["sysload"])
-				log.Println("sysload:" + k)
-				log.Println(sysloadArrayMap[k])
-				log.Println(len(sysloadArrayMap[k]))
-				log.Println(cap(sysloadArrayMap[k]))
+				log.Debug("sysload:" + k)
+				log.Debug(sysloadArrayMap[k])
+				log.Debug(len(sysloadArrayMap[k]))
+				log.Debug(cap(sysloadArrayMap[k]))
 				metricsValues[k] = calcMovingAverage(sysloadArrayMap[k])
 			}
 
@@ -580,7 +513,7 @@ func updateMetrics(refreshRate int) {
 				v.Set(metricsValues[k])
 			}
 
-			log.Println(metricsValues)
+			log.Debug(metricsValues)
 
 		}
 
@@ -593,8 +526,91 @@ func updateMetrics(refreshRate int) {
 		}
 		statTimePrev = statTime
 
-		fmt.Printf("metric updated: %d \n", counter)
+		log.Debugf("metric updated: %d \n", counter)
 		time.Sleep(time.Duration(refreshRate) * time.Second)
 	}
 
+}
+
+var (
+	verbose              = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
+	stat = kingpin.Flag("stat", "show status and exit").Short('s').Bool()
+	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
+	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
+)
+
+type Parameter struct {
+	TargetBlockDevices   []string
+	InterruptThreshold   float64
+	TargetNetworkDevices []string
+	InterruptedCpuGroup  map[string][]string
+}
+
+var globalParam Parameter
+
+func main() {
+
+	kingpin.Parse()
+
+	// set up logger
+	cfg := zap.NewDevelopmentConfig()
+	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
+	cfg.EncoderConfig.EncodeCaller = nil
+
+	if (*verbose) {
+		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+		cfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+	}
+	logger,_ := cfg.Build()
+
+	defer logger.Sync() //
+	log = logger.Sugar()
+
+	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
+	NumCPU = getCpuNum()
+	if err == nil {
+		log.Infof("SC_CLK_TCK: %v\n", confUserHz)
+	}
+	UserHz = confUserHz
+
+	globalParam.TargetBlockDevices = findBlockDevices()
+	globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
+
+	// init interrupted cpu group
+	globalParam.InterruptedCpuGroup = make(map[string][]string)
+	for _, d := range globalParam.TargetNetworkDevices {
+		r := findInterruptedCpu(d)
+		if len(r) > 0 {
+			globalParam.InterruptedCpuGroup[d] = r
+		}
+	}
+
+	log.Debug(globalParam)
+
+	log.Info("init metrics")
+	metrics = make(map[string]prometheus.Gauge)
+	initMetrics(metrics)
+
+	if *stat {
+
+		log.Info("show stats: ")
+		log.Info(globalParam)
+
+	} else  {
+
+		log.Info("register metrics")
+		for _, e := range metrics {
+			prometheus.MustRegister(e)
+		}
+
+		log.Info("start updater")
+		go updateMetrics(refreshRate)
+
+		log.Info("start http handler on " + *listenAddress )
+		http.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe(*listenAddress, nil))
+
+
+	}
 }
