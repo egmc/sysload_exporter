@@ -39,7 +39,7 @@ var ProcStatFieldMap = map[string]int{
 }
 
 var metrics map[string]prometheus.Gauge
-var log  *zap.SugaredLogger
+var log *zap.SugaredLogger
 
 // return wrapped value
 func counterWrap(num float64) float64 {
@@ -534,7 +534,7 @@ func updateMetrics(refreshRate int) {
 
 var (
 	verbose              = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
-	stat = kingpin.Flag("stat", "show status and exit").Short('s').Bool()
+	stat                 = kingpin.Flag("stat", "show status and exit").Short('s').Bool()
 	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
 	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":5000").String()
 	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
@@ -558,11 +558,11 @@ func main() {
 	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	cfg.EncoderConfig.EncodeCaller = nil
 
-	if (*verbose) {
+	if *verbose {
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 		cfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 	}
-	logger,_ := cfg.Build()
+	logger, _ := cfg.Build()
 
 	defer logger.Sync() //
 	log = logger.Sugar()
@@ -597,7 +597,7 @@ func main() {
 		log.Info("show stats: ")
 		log.Info(globalParam)
 
-	} else  {
+	} else {
 
 		log.Info("register metrics")
 		for _, e := range metrics {
@@ -607,10 +607,9 @@ func main() {
 		log.Info("start updater")
 		go updateMetrics(refreshRate)
 
-		log.Info("start http handler on " + *listenAddress )
+		log.Info("start http handler on " + *listenAddress)
 		http.Handle("/metrics", promhttp.Handler())
 		log.Fatal(http.ListenAndServe(*listenAddress, nil))
-
 
 	}
 }
