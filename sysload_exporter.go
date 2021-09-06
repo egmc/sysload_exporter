@@ -92,7 +92,8 @@ func findInterruptedCpu(targetDevice string) []string {
 
 	f, err := os.Open("/proc/interrupts")
 	if err != nil {
-		log.Fatal("couldn't open /proc/interrupts")
+		log.Error("couldn't open /proc/interrupts")
+		log.Fatal(err)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -272,7 +273,6 @@ func updateIoStat(stats map[string]uint64) {
 func calcSysLoad(metricsValues map[string]float64) float64 {
 	sysLoad := 0.0
 
-	log.Debug("calcSysload")
 	for k, v := range metricsValues {
 		if strings.Contains(k, "_io_util") {
 			if v > sysLoad {
@@ -395,11 +395,12 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 
 func updateMetrics(refreshRate int) {
 
+	var statTime, statTimePrev time.Time
+
 	ioStats := make(map[string]uint64)
 	ioStatsPrev := make(map[string]uint64)
 	cpuStats := make(map[string]uint64)
 	cpuStatsPrev := make(map[string]uint64)
-	var statTime, statTimePrev time.Time
 
 	// init metrics values
 	metricsValues := make(map[string]float64)
@@ -419,8 +420,6 @@ func updateMetrics(refreshRate int) {
 		}
 	}
 
-	log.Debug(sysloadArrayMap)
-
 	counter := 0
 
 	for {
@@ -432,18 +431,18 @@ func updateMetrics(refreshRate int) {
 		updateCpuStat(cpuStats)
 
 		if !statTimePrev.IsZero() {
-			log.Debug("prev is  not zero")
+
+			log.Debug("iostat:")
 			log.Debug(ioStats)
 			log.Debug(ioStatsPrev)
-
+			log.Debug("cpustat:")
 			log.Debug(cpuStats)
 			log.Debug(cpuStatsPrev)
-
+			log.Debug("time:")
 			log.Debug(statTime)
 			log.Debug(statTimePrev)
 			timeDiffMs := statTime.Sub(statTimePrev).Milliseconds()
-			log.Debug(timeDiffMs)
-			//log.Debug(metrics)
+			log.Debugf("time diff %d", timeDiffMs)
 
 			// si cpu
 			sintr := 0.0
@@ -455,9 +454,6 @@ func updateMetrics(refreshRate int) {
 				for k, _ := range cpuStats {
 					if strings.Contains(k, dev) {
 						d := float64(cpuStats[k] - cpuStatsPrev[k])
-						log.Debug("d: ")
-						log.Debug(d)
-						log.Debug(k)
 						if d > 0 {
 							metricsValues[k] = d / devDiff * 100
 						} else {
@@ -502,10 +498,6 @@ func updateMetrics(refreshRate int) {
 			metricsValues["sysload"] = calcSysLoad(metricsValues)
 			for k, _ := range sysloadArrayMap {
 				sysloadArrayMap[k] = append(sysloadArrayMap[k][1:], metricsValues["sysload"])
-				log.Debug("sysload:" + k)
-				log.Debug(sysloadArrayMap[k])
-				log.Debug(len(sysloadArrayMap[k]))
-				log.Debug(cap(sysloadArrayMap[k]))
 				metricsValues[k] = calcMovingAverage(sysloadArrayMap[k])
 			}
 
@@ -513,7 +505,7 @@ func updateMetrics(refreshRate int) {
 			for k, v := range metrics {
 				v.Set(metricsValues[k])
 			}
-
+			log.Debug("metrics values: ")
 			log.Debug(metricsValues)
 
 		}
@@ -533,14 +525,6 @@ func updateMetrics(refreshRate int) {
 
 }
 
-var (
-	debug                = kingpin.Flag("debug", "Debug mode.").Bool()
-	info                 = kingpin.Flag("info", "show current information and exit").Bool()
-	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
-	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
-	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
-)
-
 type Parameter struct {
 	TargetBlockDevices   []string
 	InterruptThreshold   float64
@@ -551,6 +535,14 @@ type Parameter struct {
 var globalParam Parameter
 
 func main() {
+
+	var (
+		debug                = kingpin.Flag("debug", "Debug mode.").Bool()
+		info                 = kingpin.Flag("info", "show current information and exit").Bool()
+		targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+		listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
+		interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
+	)
 
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
@@ -576,7 +568,12 @@ func main() {
 	}
 	UserHz = confUserHz
 
-	globalParam.TargetBlockDevices = findBlockDevices()
+	globalParam.InterruptThreshold = *interruptedThreshold
+	if *targetBlockDevice == "" {
+		globalParam.TargetBlockDevices = findBlockDevices()
+	} else {
+		globalParam.TargetBlockDevices = strings.Split(*targetBlockDevice, ",")
+	}
 	globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
 
 	// init interrupted cpu group
@@ -595,10 +592,9 @@ func main() {
 	initMetrics(metrics)
 
 	if *info {
-
-		log.Info("show stats: ")
-		log.Info(globalParam)
-
+		log.Infow("stats",
+			"TargetBlockDevices", globalParam.TargetBlockDevices, "TargetNetworkDevices", globalParam.TargetNetworkDevices, "TargetNetworkDevices", globalParam.TargetNetworkDevices, "InterruptThreshold", globalParam.InterruptThreshold, "InterruptedCpuGroup", globalParam.InterruptedCpuGroup
+		)
 	} else {
 
 		log.Info("register metrics")
