@@ -171,7 +171,7 @@ func addAllCpuJiffies(e []string, stats map[string]uint64) {
 
 func updateCpuStat(stats map[string]uint64) {
 
-	f, err := os.Open("/proc/stat")
+	f, err := os.Open("/proc/info")
 	if err != nil {
 		fmt.Println("error")
 	}
@@ -535,8 +535,8 @@ func updateMetrics(refreshRate int) {
 }
 
 var (
-	verbose              = kingpin.Flag("verbose", "Verbose mode.").Short('v').Bool()
-	stat                 = kingpin.Flag("stat", "show status and exit").Short('s').Bool()
+	debug                = kingpin.Flag("debug", "Debug mode.").Bool()
+	info                 = kingpin.Flag("info", "show current information and exit").Bool()
 	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
 	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9856").String()
 	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
@@ -561,7 +561,7 @@ func main() {
 	cfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	cfg.EncoderConfig.EncodeCaller = nil
 
-	if *verbose {
+	if *debug {
 		cfg.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
 		cfg.EncoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
 	}
@@ -595,7 +595,7 @@ func main() {
 	metrics = make(map[string]prometheus.Gauge)
 	initMetrics(metrics)
 
-	if *stat {
+	if *info {
 
 		log.Info("show stats: ")
 		log.Info(globalParam)
