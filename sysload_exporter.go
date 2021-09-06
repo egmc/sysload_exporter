@@ -537,7 +537,7 @@ var (
 	debug                = kingpin.Flag("debug", "Debug mode.").Bool()
 	info                 = kingpin.Flag("info", "show current information and exit").Bool()
 	targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
-	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9856").String()
+	listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
 	interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
 )
 

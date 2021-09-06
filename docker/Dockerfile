@@ -10,6 +10,6 @@ VOLUME ["/app"]
 
 WORKDIR /app
 
-EXPOSE 9856
+EXPOSE 9858
 
 CMD ["go", "run", "sysload_exporter.go"]
