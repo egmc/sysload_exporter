@@ -25,7 +25,6 @@ const (
 
 var refreshRate = 5
 var UserHz int64
-var NumCPU int
 
 var ProcStatFieldMap = map[string]int{
 	"user":   1,
@@ -183,7 +182,7 @@ func updateCpuStat(stats map[string]uint64) {
 		stats["proc_intr"] = 0
 
 		allcpu := false
-		if len(cpus) == NumCPU {
+		if len(cpus) == globalParam.NumCPU {
 			allcpu = true
 		}
 
@@ -530,6 +529,7 @@ type Parameter struct {
 	InterruptThreshold   float64
 	TargetNetworkDevices []string
 	InterruptedCpuGroup  map[string][]string
+	NumCPU int
 }
 
 var globalParam Parameter
@@ -562,7 +562,7 @@ func main() {
 	log = logger.Sugar()
 
 	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
-	NumCPU = getCpuNum()
+	globalParam.NumCPU = getCpuNum()
 	if err == nil {
 		log.Infof("SC_CLK_TCK: %v\n", confUserHz)
 	}
@@ -593,7 +593,12 @@ func main() {
 
 	if *info {
 		log.Infow("stats",
-			"TargetBlockDevices", globalParam.TargetBlockDevices, "TargetNetworkDevices", globalParam.TargetNetworkDevices, "TargetNetworkDevices", globalParam.TargetNetworkDevices, "InterruptThreshold", globalParam.InterruptThreshold, "InterruptedCpuGroup", globalParam.InterruptedCpuGroup
+			"TargetBlockDevices", globalParam.TargetBlockDevices,
+			"TargetNetworkDevices", globalParam.TargetNetworkDevices,
+			"TargetNetworkDevices", globalParam.TargetNetworkDevices,
+			"InterruptThreshold", globalParam.InterruptThreshold,
+			"InterruptedCpuGroup", globalParam.InterruptedCpuGroup,
+			"NumCPU", globalParam.NumCPU,
 		)
 	} else {
 
