@@ -136,7 +136,8 @@ func getCpuNum() int {
 	num := 0
 	f, err := os.Open("/proc/cpuinfo")
 	if err != nil {
-		fmt.Println("error")
+		log.Error("couldn't open /proc/cpuinfo")
+		log.Fatal(err)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -149,6 +150,7 @@ func getCpuNum() int {
 	}
 
 	if err := scanner.Err(); err != nil {
+		log.Error("scan error")
 		log.Fatal(err)
 	}
 	return num
