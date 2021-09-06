@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/tklauser/go-sysconf"
@@ -171,9 +170,9 @@ func addAllCpuJiffies(e []string, stats map[string]uint64) {
 
 func updateCpuStat(stats map[string]uint64) {
 
-	f, err := os.Open("/proc/info")
+	f, err := os.Open("/proc/stat")
 	if err != nil {
-		fmt.Println("error")
+		log.Fatal(err)
 	}
 
 	defer f.Close()
@@ -244,7 +243,7 @@ func updateIoStat(stats map[string]uint64) {
 
 	f, err := os.Open("/proc/diskstats")
 	if err != nil {
-		fmt.Println("error")
+		log.Fatal(err)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
