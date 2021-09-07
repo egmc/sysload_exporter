@@ -23,7 +23,6 @@ const (
 	namespace = "sysload"
 )
 
-var refreshRate = 5
 var UserHz int64
 
 var ProcStatFieldMap = map[string]int{
@@ -542,6 +541,7 @@ func main() {
 		targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
 		listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
 		interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
+		refreshRate = kingpin.Flag("refresh-rate", "metrics refresh rate(should be 1 - 30)").Default("15").Int()
 	)
 
 	kingpin.HelpFlag.Short('h')
@@ -560,6 +560,10 @@ func main() {
 
 	defer logger.Sync() //
 	log = logger.Sugar()
+
+	if *refreshRate < 1 || *refreshRate > 30  {
+		log.Fatalw("metrics refresh rate(should be 1 - 30)", "supplied", *refreshRate)
+	}
 
 	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
 	globalParam.NumCPU = getCpuNum()
@@ -608,7 +612,7 @@ func main() {
 		}
 
 		log.Info("start updater")
-		go updateMetrics(refreshRate)
+		go updateMetrics(*refreshRate)
 
 		log.Info("start http handler on " + *listenAddress)
 		http.Handle("/metrics", promhttp.Handler())
