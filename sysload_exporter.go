@@ -528,7 +528,7 @@ type Parameter struct {
 	InterruptThreshold   float64
 	TargetNetworkDevices []string
 	InterruptedCpuGroup  map[string][]string
-	NumCPU int
+	NumCPU               int
 }
 
 var globalParam Parameter
@@ -541,7 +541,7 @@ func main() {
 		targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
 		listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
 		interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
-		refreshRate = kingpin.Flag("refresh-rate", "metrics refresh rate(should be 1 - 30)").Default("15").Int()
+		refreshRate          = kingpin.Flag("refresh-rate", "metrics refresh rate(should be 1 - 30)").Default("15").Int()
 	)
 
 	kingpin.HelpFlag.Short('h')
@@ -561,7 +561,7 @@ func main() {
 	defer logger.Sync() //
 	log = logger.Sugar()
 
-	if *refreshRate < 1 || *refreshRate > 30  {
+	if *refreshRate < 1 || *refreshRate > 30 {
 		log.Fatalw("metrics refresh rate(should be 1 - 30)", "supplied", *refreshRate)
 	}
 
