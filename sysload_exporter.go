@@ -32,7 +32,6 @@ var ProcStatFieldMap = map[string]int{
 	"sintr":  7,
 }
 
-var metrics map[string]prometheus.Gauge
 var log *zap.SugaredLogger
 
 // return wrapped value
@@ -388,7 +387,7 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 
 }
 
-func updateMetrics(refreshRate int) {
+func updateMetrics(metrics map[string]prometheus.Gauge, refreshRate int) {
 
 	var statTime, statTimePrev time.Time
 
@@ -584,7 +583,7 @@ func main() {
 	log.Debug(globalParam)
 
 	log.Info("init metrics")
-	metrics = make(map[string]prometheus.Gauge)
+	metrics := make(map[string]prometheus.Gauge)
 	initMetrics(metrics)
 
 	if *info {
@@ -604,7 +603,7 @@ func main() {
 		}
 
 		log.Info("start updater")
-		go updateMetrics(*refreshRate)
+		go updateMetrics(metrics, *refreshRate)
 
 		log.Info("start http handler on " + *listenAddress)
 		http.Handle("/metrics", promhttp.Handler())
