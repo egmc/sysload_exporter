@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/tklauser/go-sysconf"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -22,8 +21,6 @@ import (
 const (
 	namespace = "sysload"
 )
-
-var UserHz int64
 
 var ProcStatFieldMap = map[string]int{
 	"user":   1,
@@ -565,12 +562,7 @@ func main() {
 		log.Fatalw("metrics refresh rate(should be 1 - 30)", "supplied", *refreshRate)
 	}
 
-	confUserHz, err := sysconf.Sysconf(sysconf.SC_CLK_TCK)
 	globalParam.NumCPU = getCpuNum()
-	if err == nil {
-		log.Infof("SC_CLK_TCK: %v\n", confUserHz)
-	}
-	UserHz = confUserHz
 
 	globalParam.InterruptThreshold = *interruptedThreshold
 	if *targetBlockDevice == "" {
