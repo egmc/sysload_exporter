@@ -1,0 +1,15 @@
+[Unit]
+Description=Sysload Exporter Service
+After=network.target
+
+[Service]
+User=nobody
+Group=nogroup
+Type=simple
+Restart=always
+RestartSec=30
+ExecStart=/usr/bin/sysload_exporter
+TimeoutStopSec=20s
+
+[Install]
+WantedBy=multi-user.target
