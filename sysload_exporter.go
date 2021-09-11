@@ -534,7 +534,8 @@ func main() {
 	var (
 		debug                = kingpin.Flag("debug", "Debug mode.").Bool()
 		info                 = kingpin.Flag("info", "show current information and exit").Bool()
-		targetBlockDevice    = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+		targetBlockDevices   = kingpin.Flag("target-block-devices", "Target block devices to track io utils").Short('b').String()
+		targetNetworkDevices = kingpin.Flag("target-network-devices", "Target network devices to check interrupting").Short('i').String()
 		listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
 		interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
 		refreshRate          = kingpin.Flag("refresh-rate", "metrics refresh rate(should be 1 - 30)").Default("15").Int()
@@ -564,12 +565,16 @@ func main() {
 	globalParam.NumCPU = getCpuNum()
 
 	globalParam.InterruptThreshold = *interruptedThreshold
-	if *targetBlockDevice == "" {
+	if *targetBlockDevices == "" {
 		globalParam.TargetBlockDevices = findBlockDevices()
 	} else {
-		globalParam.TargetBlockDevices = strings.Split(*targetBlockDevice, ",")
+		globalParam.TargetBlockDevices = strings.Split(*targetBlockDevices, ",")
 	}
-	globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input"}
+	if *targetNetworkDevices == "" {
+		globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input", "virtio1-input"}
+	} else {
+		globalParam.TargetBlockDevices = strings.Split(*targetNetworkDevices, ",")
+	}
 
 	// init interrupted cpu group
 	globalParam.InterruptedCpuGroup = make(map[string][]string)
