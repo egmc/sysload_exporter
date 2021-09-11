@@ -1,0 +1,4 @@
+#!/bin/sh
+
+systemctl stop sysload-exporter.service
+systemctl disable sysload-exporter.service

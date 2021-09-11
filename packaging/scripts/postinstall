@@ -1,0 +1,5 @@
+#!/bin/sh
+
+systemctl daemon-reload
+systemctl enable sysload-exporter.service
+systemctl restart sysload-exporter.service

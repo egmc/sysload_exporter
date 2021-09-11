@@ -1,0 +1,43 @@
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+archives:
+  - replacements:
+      linux: Linux
+      386: i386
+      amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+nfpms:
+  -
+    package_name: sysload-exporter
+    file_name_template: 'sysload-exporter_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}'
+    homepage: https://github.com/egmc/sysload_exporter
+    maintainer: Sohei Iwahori
+    description: "sysload exporter is prometheus style, go implementation of https://github.com/gree/sysload"
+    license: GPL-2.0
+    replacements:
+      linux: Linux
+    formats:
+      - deb
+    contents:
+      - src: "packaging/deb/systemd/sysload-exporter.service"
+        dst: "/usr/lib/systemd/system/sysload-exporter.service"
+    bindir: /usr/bin
+    scripts:
+      postinstall: "packaging/scripts/postinstall"
+      postremove: "packaging/scripts/postremove"
+      preremove: "packaging/scripts/preremove"
