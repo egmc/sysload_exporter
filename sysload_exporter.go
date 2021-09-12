@@ -306,7 +306,7 @@ func calcMovingAverage(loadList []float64) float64 {
 
 }
 
-func initMetrics(metrics map[string]prometheus.Gauge) {
+func initAndRegisterMetrics(metrics map[string]prometheus.Gauge) {
 
 	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
@@ -579,13 +579,9 @@ func main() {
 		)
 	} else {
 
-		//log.Info("register metrics")
-		//for _, e := range metrics {
-		//	prometheus.MustRegister(e)
-		//}
-		log.Info("init metrics")
+		log.Info("init and register metrics")
 		metrics := make(map[string]prometheus.Gauge)
-		initMetrics(metrics)
+		initAndRegisterMetrics(metrics)
 
 		log.Info("start updater")
 		go updateMetrics(metrics, *refreshRate)
