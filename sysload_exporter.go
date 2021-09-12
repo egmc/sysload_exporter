@@ -306,7 +306,7 @@ func calcMovingAverage(loadList []float64) float64 {
 
 }
 
-func initMetrics(metrics map[string]prometheus.Gauge) {
+func initAndRegisterMetrics(metrics map[string]prometheus.Gauge) {
 
 	metrics["sysload"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
@@ -330,50 +330,6 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		Help:      "Sysload 15 min",
 	})
 
-	for _, dev := range globalParam.TargetBlockDevices {
-		metrics[dev+"_io_util"] = prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      dev + "_io_util",
-			Help:      dev + " IO Util",
-		})
-	}
-
-	metrics["si_cpu_user"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_user",
-		Help:      "Software Interrupted CPU User",
-	})
-	metrics["si_cpu_nice"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_nice",
-		Help:      "Software Interrupted CPU Nice",
-	})
-	metrics["si_cpu_system"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_system",
-		Help:      "Software Interrupted CPU System",
-	})
-	metrics["si_cpu_idle"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_idle",
-		Help:      "Software Interrupted CPU Idle",
-	})
-	metrics["si_cpu_wio"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_wio",
-		Help:      "Software Interrupted CPU wio",
-	})
-	metrics["si_intr"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_intr",
-		Help:      "Software Interrupted CPU Intr",
-	})
-	metrics["si_sintr"] = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: namespace,
-		Name:      "si_cpu_sintr",
-		Help:      "Software Interrupted CPU SIntr",
-	})
-
 	metrics["proc_ctxt"] = prometheus.NewGauge(prometheus.GaugeOpts{
 		Namespace: namespace,
 		Name:      "proc_ctxt",
@@ -384,6 +340,31 @@ func initMetrics(metrics map[string]prometheus.Gauge) {
 		Name:      "proc_intr",
 		Help:      "Interrupts",
 	})
+
+	log.Info("register metrics")
+	for _, e := range metrics {
+		prometheus.MustRegister(e)
+	}
+
+	ioUtilsGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "io_util",
+		Help:      "IO Util",
+	}, []string{"device"})
+	prometheus.MustRegister(ioUtilsGaugeVec)
+	for _, dev := range globalParam.TargetBlockDevices {
+		metrics[dev+"_io_util"], _ = ioUtilsGaugeVec.GetMetricWith(prometheus.Labels{"device": dev})
+	}
+
+	siCpuGaugeVec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "si_cpu",
+		Help:      "Software Interrupted CPU",
+	}, []string{"mode"})
+	prometheus.MustRegister(siCpuGaugeVec)
+	for mode, _ := range ProcStatFieldMap {
+		metrics["si_cpu_"+mode], _ = siCpuGaugeVec.GetMetricWith(prometheus.Labels{"mode": mode})
+	}
 
 }
 
@@ -587,10 +568,6 @@ func main() {
 
 	log.Debug(globalParam)
 
-	log.Info("init metrics")
-	metrics := make(map[string]prometheus.Gauge)
-	initMetrics(metrics)
-
 	if *info {
 		log.Infow("stats",
 			"TargetBlockDevices", globalParam.TargetBlockDevices,
@@ -602,10 +579,9 @@ func main() {
 		)
 	} else {
 
-		log.Info("register metrics")
-		for _, e := range metrics {
-			prometheus.MustRegister(e)
-		}
+		log.Info("init and register metrics")
+		metrics := make(map[string]prometheus.Gauge)
+		initAndRegisterMetrics(metrics)
 
 		log.Info("start updater")
 		go updateMetrics(metrics, *refreshRate)
