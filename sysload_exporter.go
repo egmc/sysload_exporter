@@ -164,6 +164,9 @@ func addAllCpuJiffies(e []string, stats map[string]uint64) {
 }
 
 func updateCpuStat(stats map[string]uint64) {
+	for k, _ := range stats {
+		stats[k] = 0
+	}
 
 	f, err := os.Open("/proc/stat")
 	if err != nil {
@@ -235,6 +238,10 @@ func updateCpuStat(stats map[string]uint64) {
 }
 
 func updateIoStat(stats map[string]uint64) {
+
+	for k, _ := range stats {
+		stats[k] = 0
+	}
 
 	f, err := os.Open("/proc/diskstats")
 	if err != nil {
@@ -454,6 +461,7 @@ func updateMetrics(metrics map[string]prometheus.Gauge, refreshRate int) {
 				d := cpuStats[k] - cpuStatsPrev[k]
 				if d > 0.0 {
 					if strings.Contains(k, "all_cpu") {
+						log.Debugw("all_cpu", k, d, "totaldiff", allCpuDiff)
 						metricsValues[k] = float64(d) / allCpuDiff * 100
 					}
 					if strings.Contains(k, "proc_ctxt") || strings.Contains(k, "proc_intr") {
