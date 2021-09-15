@@ -213,7 +213,10 @@ func updateCpuStat(stats map[string]uint64) {
 			}
 
 			if e[0] == "cpu" {
-				addAllCpuJiffies(e, stats)
+				if stats["all_cpu_total"] == 0 {
+					// (optimization differ from original cpustats.py)add all cpu stats only first time
+					addAllCpuJiffies(e, stats)
+				}
 				if allcpu {
 					addJiffies(e, dev, stats)
 				}
@@ -461,15 +464,16 @@ func updateMetrics(metrics map[string]prometheus.Gauge, refreshRate int) {
 				d := cpuStats[k] - cpuStatsPrev[k]
 				if d > 0.0 {
 					if strings.Contains(k, "all_cpu") {
-						log.Debugw("all_cpu", k, d, "totaldiff", allCpuDiff)
 						metricsValues[k] = float64(d) / allCpuDiff * 100
 					}
 					if strings.Contains(k, "proc_ctxt") || strings.Contains(k, "proc_intr") {
 						// calc per sec increase
 						metricsValues[k] = float64(d) / float64(timeDiffMs/1000)
 					}
+				} else {
+					metricsValues[k] = 0.0
 				}
-
+				log.Debugw("all_cpu", k, d, "totaldiff", allCpuDiff)
 			}
 
 			//io
