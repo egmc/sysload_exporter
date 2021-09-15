@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # RUN apt update
 RUN apt-get update
-RUN apt-get install -y vim golang ca-certificates
+RUN apt-get install -y vim golang ca-certificates stress
 
 VOLUME ["/app"]
 
