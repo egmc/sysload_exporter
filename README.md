@@ -18,3 +18,7 @@ Flags:
       --interrupted-threshold=40.0  
                                 Threshold to consider interrupted cpu usage as sysload
 ```
+
+# grafana dashboard sample
+
+- https://grafana.com/grafana/dashboards/15014
