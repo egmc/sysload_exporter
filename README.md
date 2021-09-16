@@ -22,3 +22,5 @@ Flags:
 # grafana dashboard sample
 
 - https://grafana.com/grafana/dashboards/15014
+
+![grafana dashboard image](resources/dashboard.png)
