@@ -480,6 +480,9 @@ func updateMetrics(metrics map[string]prometheus.Gauge, refreshRate int) {
 			for k, v := range ioStats {
 				diff := counterWrap(float64(v - ioStatsPrev[k]))
 				metricsValues[k] = diff / float64(timeDiffMs) * 100
+				if metricsValues[k] > 100.0 {
+					metricsValues[k] = 100.0 //io util can be over 100
+				}
 			}
 			// sysLoad
 			metricsValues["sysload"] = calcSysLoad(metricsValues)
