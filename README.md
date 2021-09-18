@@ -1,7 +1,9 @@
-sysload exporter
+Sysload Exporter
 ---
 
-sysload exporter is prometheus style, go implementation of https://github.com/gree/sysload
+Sysload exporter is prometheus style, go implementation of [gree/sysload](https://github.com/gree/sysload) .
+Sysload is a metric that aims to measure system load as percentage instead of load average.For further information, Please refer to original description.
+
 
 # usage
 
@@ -12,11 +14,15 @@ Flags:
   -h, --help                    Show context-sensitive help (also try --help-long and --help-man).
       --debug                   Debug mode.
       --info                    show current information and exit
-  -b, --target-block-devices=TARGET-BLOCK-DEVICES  
+  -b, --target-block-devices=TARGET-BLOCK-DEVICES
                                 Target block devices to track io utils
+  -i, --target-network-devices=TARGET-NETWORK-DEVICES
+                                Target network devices to check interrupting
       --listen-address=":9858"  The address to listen on for HTTP requests.
       --interrupted-threshold=40.0  
                                 Threshold to consider interrupted cpu usage as sysload
+      --refresh-rate=15         metrics refresh rate(should be 1 - 30)
+
 ```
 
 # grafana dashboard sample
