@@ -25,6 +25,37 @@ Flags:
 
 ```
 
+# try sysload in docker environment
+
+run
+```shell
+#run sysload exporter and stress
+docker-compose up -d
+docker-compose exec sysload sh -c 'stress --cpu `grep -c processor /proc/cpuinfo`'
+
+# in another terminal
+watch 'curl -s localhost:9858/metrics |grep "^sysload"'
+```
+
+output is like below
+```shell
+sysload_io_util{device="vda"} 0
+sysload_proc_ctxt 639.4666666666667
+sysload_proc_intr 2219
+sysload_si_cpu{mode="idle"} 0
+sysload_si_cpu{mode="intr"} 0
+sysload_si_cpu{mode="nice"} 0
+sysload_si_cpu{mode="sintr"} 0
+sysload_si_cpu{mode="system"} 0.20134228187919465
+sysload_si_cpu{mode="user"} 99.79865771812081
+sysload_si_cpu{mode="wio"} 0
+sysload_sysload 100
+sysload_sysload_fifteen 79.45156351127729
+sysload_sysload_five 56.345939016162866
+sysload_sysload_one 43.08324846990691
+
+```
+
 # grafana dashboard sample
 
 - https://grafana.com/grafana/dashboards/15014
