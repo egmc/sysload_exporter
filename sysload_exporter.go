@@ -34,6 +34,14 @@ var ProcStatFieldMap = map[string]int{
 
 var log *zap.SugaredLogger
 
+var globalParam struct {
+	TargetBlockDevices   []string
+	InterruptThreshold   float64
+	TargetNetworkDevices []string
+	InterruptedCpuGroup  map[string][]string
+	NumCPU               int
+}
+
 // return wrapped value
 func counterWrap(num float64) float64 {
 	if num > math.MaxUint32 {
@@ -514,16 +522,6 @@ func updateMetrics(metrics map[string]prometheus.Gauge, refreshRate int) {
 	}
 
 }
-
-type Parameter struct {
-	TargetBlockDevices   []string
-	InterruptThreshold   float64
-	TargetNetworkDevices []string
-	InterruptedCpuGroup  map[string][]string
-	NumCPU               int
-}
-
-var globalParam Parameter
 
 func main() {
 
