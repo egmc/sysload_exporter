@@ -40,6 +40,7 @@ var globalParam struct {
 	TargetNetworkDevices []string
 	InterruptedCpuGroup  map[string][]string
 	NumCPU               int
+	ProcPath             string
 }
 
 // return wrapped value
@@ -64,9 +65,10 @@ func findBlockDevices() []string {
 	var devices []string
 	r := regexp.MustCompile("^(x?[svh]d[a-z]|cciss\\/c0d0|fio[a-z])$")
 
-	f, err := os.Open("/proc/diskstats")
+	statPath := globalParam.ProcPath + "/diskstats"
+	f, err := os.Open(statPath)
 	if err != nil {
-		log.Fatal("couldn't open /proc/diskstats")
+		log.Fatal("couldn't open" + statPath)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -92,9 +94,10 @@ func findInterruptedCpu(targetDevice string) []string {
 
 	cpuNum := getCpuNum()
 
-	f, err := os.Open("/proc/interrupts")
+	statPath := globalParam.ProcPath + "/interrupts"
+	f, err := os.Open(statPath)
 	if err != nil {
-		log.Error("couldn't open /proc/interrupts")
+		log.Error("couldn't open" + statPath)
 		log.Fatal(err)
 	}
 	defer f.Close()
@@ -136,9 +139,10 @@ func findInterruptedCpu(targetDevice string) []string {
 
 func getCpuNum() int {
 	num := 0
-	f, err := os.Open("/proc/cpuinfo")
+	statPath := globalParam.ProcPath + "/cpuinfo"
+	f, err := os.Open(statPath)
 	if err != nil {
-		log.Error("couldn't open /proc/cpuinfo")
+		log.Error("couldn't open" + statPath)
 		log.Fatal(err)
 	}
 	defer f.Close()
@@ -176,7 +180,8 @@ func updateCpuStat(stats map[string]uint64) {
 		stats[k] = 0
 	}
 
-	f, err := os.Open("/proc/stat")
+	statPath := globalParam.ProcPath + "/stat"
+	f, err := os.Open(statPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -254,7 +259,8 @@ func updateIoStat(stats map[string]uint64) {
 		stats[k] = 0
 	}
 
-	f, err := os.Open("/proc/diskstats")
+	statPath := globalParam.ProcPath + "/diskstats"
+	f, err := os.Open(statPath)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -533,6 +539,7 @@ func main() {
 		listenAddress        = kingpin.Flag("listen-address", "The address to listen on for HTTP requests.").Default(":9858").String()
 		interruptedThreshold = kingpin.Flag("interrupted-threshold", "Threshold to consider interrupted cpu usage as sysload").Default("40.0").Float64()
 		refreshRate          = kingpin.Flag("refresh-rate", "metrics refresh rate(should be 1 - 30)").Default("15").Int()
+		procPath             = kingpin.Flag("path.procfs", "procfs mountpoint.").Default("/proc").String()
 	)
 
 	kingpin.HelpFlag.Short('h')
@@ -555,6 +562,9 @@ func main() {
 	if *refreshRate < 1 || *refreshRate > 30 {
 		log.Fatalw("metrics refresh rate(should be 1 - 30)", "supplied", *refreshRate)
 	}
+
+	// set proc path first
+	globalParam.ProcPath = *procPath
 
 	globalParam.NumCPU = getCpuNum()
 
