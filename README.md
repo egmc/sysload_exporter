@@ -22,7 +22,7 @@ Flags:
       --interrupted-threshold=40.0  
                                 Threshold to consider interrupted cpu usage as sysload
       --refresh-rate=15         metrics refresh rate(should be 1 - 30)
-
+      --path.procfs="/proc"     procfs mountpoint.
 ```
 
 # try sysload in docker environment
