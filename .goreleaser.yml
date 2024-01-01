@@ -7,15 +7,16 @@ builds:
     goos:
       - linux
 archives:
-  name_template: >-
-    {{ .ProjectName }}_
-    {{- .Version }}_
-    {{- if eq .Os "linux" }}Linux
-    {{- else }}{{ title .Os }}{{ end }}_
-    {{- if eq .Arch "amd64" }}64bit
-    {{- else if eq .Arch "386" }}i386
-    {{- else if eq .Arch "arm64" }}x86_64
-    {{- else }}{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ end }}
+  - 
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- if eq .Os "linux" }}Linux
+      {{- else }}{{ title .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}64bit
+      {{- else if eq .Arch "386" }}i386
+      {{- else if eq .Arch "arm64" }}x86_64
+      {{- else }}{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ end }}
 checksum:
   name_template: 'checksums.txt'
 snapshot:
@@ -35,8 +36,7 @@ nfpms:
     maintainer: Sohei Iwahori
     description: "sysload exporter is prometheus style, go implementation of https://github.com/gree/sysload"
     license: GPL-2.0
-    replacements:
-      linux: Linux
+    file_name_template: "{{ .ConventionalFileName }}"
     formats:
       - deb
     contents:
