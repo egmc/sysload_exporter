@@ -2,11 +2,6 @@ package main
 
 import (
 	"bufio"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"math"
 	"net/http"
 	"os"
@@ -16,6 +11,12 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const (
@@ -577,7 +578,7 @@ func main() {
 	if *targetNetworkDevices == "" {
 		globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input", "virtio1-input"}
 	} else {
-		globalParam.TargetBlockDevices = strings.Split(*targetNetworkDevices, ",")
+		globalParam.TargetNetworkDevices = strings.Split(*targetNetworkDevices, ",")
 	}
 
 	// init interrupted cpu group
@@ -594,7 +595,6 @@ func main() {
 	if *info {
 		log.Infow("stats",
 			"TargetBlockDevices", globalParam.TargetBlockDevices,
-			"TargetNetworkDevices", globalParam.TargetNetworkDevices,
 			"TargetNetworkDevices", globalParam.TargetNetworkDevices,
 			"InterruptThreshold", globalParam.InterruptThreshold,
 			"InterruptedCpuGroup", globalParam.InterruptedCpuGroup,
