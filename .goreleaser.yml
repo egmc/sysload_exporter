@@ -31,7 +31,6 @@ changelog:
 nfpms:
   -
     package_name: sysload-exporter
-    file_name_template: 'sysload-exporter_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}_{{ .Mips }}{{ end }}'
     homepage: https://github.com/egmc/sysload_exporter
     maintainer: Sohei Iwahori
     description: "sysload exporter is prometheus style, go implementation of https://github.com/gree/sysload"
