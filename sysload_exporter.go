@@ -576,7 +576,7 @@ func main() {
 		globalParam.TargetBlockDevices = strings.Split(*targetBlockDevices, ",")
 	}
 	if *targetNetworkDevices == "" {
-		globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input", "virtio1-input"}
+		globalParam.TargetNetworkDevices = []string{"eth0", "eth1", "eth2", "eth3", "virtio0-input", "virtio1-input", "virtio0"}
 	} else {
 		globalParam.TargetNetworkDevices = strings.Split(*targetNetworkDevices, ",")
 	}
